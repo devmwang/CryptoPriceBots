@@ -10,17 +10,28 @@ from discord_slash import SlashCommand
 
 
 groups = {
-    'ODM5NjY2NjU4NjQ1OTAxMzIy.YJM-gw.JryOhVS2hdlX3gu5_htRgusDUFk': [
-        'BTC-PERP',
+    # 'ODM5NjY2NjU4NjQ1OTAxMzIy.YJM-gw.JryOhVS2hdlX3gu5_htRgusDUFk': [
+    #     'BTC-PERP',
+    # ],
+    # 'ODM5NjY3MDg4OTQ3ODA2Mjc4.YJM-6g._W4Z89u1-PE9F_jGs8nHeLPil8E': [
+    #     'ETH-PERP',
+    # ],
+    # 'ODYwMDQxMDk4NTU4MDQ2MjA5.YN1dsA.nSk77b0x0s6gP4IsSwvVnPmRZks': [
+    #     'SOL-PERP',
+    # ],
+    # 'ODYyODAyMjY3MTY5NzUxMDQ4.YOdpOg.eauZzdh8U51H3umSOTOWh2fe9BU': [
+    #     'FTT-PERP',
+    # ],
+    # 'ODk1NzAyMTAyOTM5MTQ0Mjc0.YV8Zlg.Wj7CH-HrcJxxJXNDpDc_r6UTsVo': [
+    #     'MATIC-PERP',
+    # ],
+    'OTE1Nzg0OTI4MTE1OTQ5NTY5.YagpLQ.swfkjBpwoSp9JpIknVD134xld_U': [
+        'LRC-PERP',
+        'DOT-PERP',
     ],
-    'ODM5NjY3MDg4OTQ3ODA2Mjc4.YJM-6g._W4Z89u1-PE9F_jGs8nHeLPil8E': [
-        'ETH-PERP',
-    ],
-    'ODYwMDQxMDk4NTU4MDQ2MjA5.YN1dsA.nSk77b0x0s6gP4IsSwvVnPmRZks': [
-        'SOL-PERP',
-    ],
-    'ODYyODAyMjY3MTY5NzUxMDQ4.YOdpOg.eauZzdh8U51H3umSOTOWh2fe9BU': [
-        'FTT-PERP',
+    'OTMyNDQyMTE2NTY1NjU5NzY4.YeTCZA.Hg0jgaIPa8dVPpo1M_kKTQREB4I': [
+        'RAY-PERP',
+        'SRM-PERP',
     ],
     'OTA4MjE3MDk2NTc0NDY4MTM2.YYyhFQ.eMtJCaZesp94kX_ZbBL1XZWrq6k': [
         'UNI-PERP',
@@ -29,16 +40,6 @@ groups = {
     'ODk4MDEyMDE0OTg5OTM4NzQ4.YWeA3A.o3Lo7BC1vAwvL-lp1vAUr-xsdkA': [
         'LINK-PERP',
         'LTC-PERP',
-    ],
-    'ODk1NzAyMTAyOTM5MTQ0Mjc0.YV8Zlg.Wj7CH-HrcJxxJXNDpDc_r6UTsVo': [
-        'MATIC-PERP',
-    ],
-    'OTE1Nzg0OTI4MTE1OTQ5NTY5.YagpLQ.swfkjBpwoSp9JpIknVD134xld_U': [
-        'LRC-PERP',
-    ],
-    'OTMyNDQyMTE2NTY1NjU5NzY4.YeTCZA.Hg0jgaIPa8dVPpo1M_kKTQREB4I': [
-        'RAY-PERP',
-        'SRM-PERP',
     ],
 }
 
@@ -64,8 +65,10 @@ class PriceBot:
         # self.client.load_extension('commandhandler')
 
         # Init for Price Alerts functionality
-        self.client.alert_up = None
-        self.client.alert_down = None
+        self.client.prim_alert_up = None
+        self.client.prim_alert_down = None
+        self.client.sec_alert_up = None
+        self.client.sec_alert_down = None
 
         self.token = bot_token
 
@@ -82,20 +85,39 @@ class PriceBot:
 
         self.on_ready = self.client.event(self.on_ready)
 
-    # @tasks.loop(seconds=loop_time*4)
-    # async def check_if_price_stale(self):
-    #     guild = self.client.get_guild(696082479752413274)
-    #     nick_price = float(re.findall(r"\d+\.\d+", guild.get_member(self.client.user.id).nick)[0])
-    #     cur_price = get_price(self.pair)
-    #     variability_threshold = cur_price * 0.01
-    #     # If lower threshold is larger than displayed price or higher threshold is smaller than displayed price, we have a slight problem
-    #     if cur_price - variability_threshold > nick_price or cur_price + variability_threshold < nick_price:
-    #         # Assume there might be volume spike and just mention it *could* be stale
-    #         await self.client.change_presence(activity=discord.Game(f"[!] Prices may be stale."), status=discord.Status.idle)
+    @tasks.loop(seconds=loop_time*4)
+    async def check_if_price_stale(self):
+        guild = self.client.get_guild(696082479752413274)
+        bot_member = guild.get_member(self.client.user.id)
 
-    #     if cur_price - variability_threshold*2 > nick_price or cur_price + variability_threshold*2 < nick_price:
-    #         # Now we have a larger problem
-    #         await self.client.change_presence(activity=discord.Game(f"[!!] Prices are stale."), status=discord.Status.dnd)
+        nick_price = float(re.findall(r"\d+\.\d+", bot_member.nick)[0])
+        cur_price = get_price(self.group[0])
+        variability_threshold = cur_price * 0.01
+        # If lower threshold is larger than displayed price or higher threshold is smaller than displayed price, we have a slight problem
+        if cur_price - variability_threshold > nick_price or cur_price + variability_threshold < nick_price:
+            # Assume there might be volume spike and just mention it *could* be stale
+            await self.client.change_presence(status=discord.Status.idle)
+
+        if cur_price - variability_threshold*2 > nick_price or cur_price + variability_threshold*2 < nick_price:
+            # Now we have a larger problem
+            await self.client.change_presence(status=discord.Status.dnd)
+
+        # Repeat checks if it is combined bot
+        if self.combined == True:
+            # Activity is not immediately set on launch, so check that bot has activity first
+            if len(bot_member.activities) != 0:
+                # Same as above code by vars changed to reflect secondary coin
+                status_price = float(re.findall(r"\d+\.\d+", bot_member.activities[0].name)[0])
+                cur_price = get_price(self.group[1])
+                variability_threshold = cur_price * 0.01
+                # If lower threshold is larger than displayed price or higher threshold is smaller than displayed price, we have a slight problem
+                if cur_price - variability_threshold > status_price or cur_price + variability_threshold < status_price:
+                    # Assume there might be volume spike and just mention it *could* be stale
+                    await self.client.change_presence(status=discord.Status.idle)
+
+                if cur_price - variability_threshold*2 > status_price or cur_price + variability_threshold*2 < status_price:
+                    # Now we have a larger problem
+                    await self.client.change_presence(status=discord.Status.dnd)
 
     @tasks.loop(seconds=loop_time)
     async def update_price(self):
@@ -110,18 +132,18 @@ class PriceBot:
 
         # Check if any alerts triggered
         # TODO: Rewrite alert logic to check price for both tokens (if applicable)
-        if self.client.alert_up:
+        if self.client.prim_alert_up:
             alert_channel = self.client.get_channel(696082479752413277)
             alert_role = guild.get_role(798457594661437450)
-            if usd_price_1 > self.client.alert_up:
-                await alert_channel.send(f"\U0001f4c8 {alert_role.mention} {self.client.user.mention} is above {self.client.alert_up}.")
-                self.client.alert_up = None
-        if self.client.alert_down:
+            if usd_price_1 > self.client.prim_alert_up:
+                await alert_channel.send(f"\U0001f4c8 {alert_role.mention} {self.client.user.mention} is above {self.client.prim_alert_up}.")
+                self.client.prim_alert_up = None
+        if self.client.prim_alert_down:
             alert_channel = self.client.get_channel(696082479752413277)
             alert_role = guild.get_role(798457594661437450)
-            if usd_price_1 < self.client.alert_down:
-                await alert_channel.send(f"\U0001f4c9 {alert_role.mention} {self.client.user.mention} is below {self.client.alert_down}.")
-                self.client.alert_down = None
+            if usd_price_1 < self.client.prim_alert_down:
+                await alert_channel.send(f"\U0001f4c9 {alert_role.mention} {self.client.user.mention} is below {self.client.prim_alert_down}.")
+                self.client.prim_alert_down = None
 
         # Format for bot users
         #
@@ -143,7 +165,7 @@ class PriceBot:
 
     async def on_ready(self):
         self.update_price.start()
-        # self.check_if_price_stale.start()
+        self.check_if_price_stale.start()
         if self.combined == True:
             print(f"{self.pairs[0]}/{self.pairs[1]} loaded")
         else:
