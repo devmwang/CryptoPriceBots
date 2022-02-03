@@ -52,7 +52,6 @@ class CommandHandler(commands.Cog):
 
     @commands.Cog.listener()
     async def on_message(self, m):
-
         # On mention activities
         if m.content in [f"<@{self.client.user.id}>", f"<@!{self.client.user.id}>"]:
             # Buttons
@@ -111,7 +110,7 @@ class CommandHandler(commands.Cog):
 
         # Set price alerts
         # Updated price alert setter code to be compatible with combined bots
-        elif m.content.upper().startswith(self.client.pairs[0] or self.client.pairs[1]):
+        elif m.content.upper().startswith(self.client.pairs[0]) or m.content.upper().startswith(self.client.pairs[1]):
             mlist = m.content.split()  # Should return list: [asset ticker, number]
             ticker = mlist[0]
             index = self.client.pairs.index(ticker.upper())
@@ -137,26 +136,26 @@ class CommandHandler(commands.Cog):
                 await asyncio.sleep(main.delete_cooldown)
                 await m.delete()
                 await msg.delete()
-            
-            if index == 0:
-                if alertprice > curr_price:
-                    self.client.prim_alert_up = alertprice
-                    await m.reply(f"Set alert for {self.client.pairs[index]} above ${alertprice}.")
-                elif alertprice < curr_price:
-                    self.client.prim_alert_down = alertprice
-                    await m.reply(f"Set alert for {self.client.pairs[index]} below ${alertprice}.")
-                else:
-                    await m.reply("BA DING")
+            else:            
+                if index == 0:
+                    if alertprice > curr_price:
+                        self.client.prim_alert_up = alertprice
+                        await m.reply(f"Set alert for {self.client.pairs[index]} above ${alertprice}.")
+                    elif alertprice < curr_price:
+                        self.client.prim_alert_down = alertprice
+                        await m.reply(f"Set alert for {self.client.pairs[index]} below ${alertprice}.")
+                    else:
+                        await m.reply("BA DING")
 
-            elif index == 1:
-                if alertprice > curr_price:
-                    self.client.sec_alert_up = alertprice
-                    await m.reply(f"Set alert for {self.client.pairs[index]} above ${alertprice}.")
-                elif alertprice < curr_price:
-                    self.client.sec_alert_down = alertprice
-                    await m.reply(f"Set alert for {self.client.pairs[index]} below ${alertprice}.")
-                else:
-                    await m.reply("BA DING")
+                elif index == 1:
+                    if alertprice > curr_price:
+                        self.client.sec_alert_up = alertprice
+                        await m.reply(f"Set alert for {self.client.pairs[index]} above ${alertprice}.")
+                    elif alertprice < curr_price:
+                        self.client.sec_alert_down = alertprice
+                        await m.reply(f"Set alert for {self.client.pairs[index]} below ${alertprice}.")
+                    else:
+                        await m.reply("BA DING")
 
     @commands.command(name="alerts")
     async def alerts(self, context):

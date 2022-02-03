@@ -1,8 +1,10 @@
+import subprocess
 import discord
 import requests
 import json
 import re
 import asyncio
+import time
 from discord.ext import tasks
 from discord.ext.commands import Bot
 from discord_slash import SlashCommand
@@ -69,6 +71,9 @@ class PriceBot:
         self.client.sec_alert_up = None
         self.client.sec_alert_down = None
 
+        self.client.is_stale = False
+        self.client.stale_end_trigger = None
+
         self.token = bot_token
 
         if (len(group) > 1):
@@ -84,6 +89,16 @@ class PriceBot:
 
         self.on_ready = self.client.event(self.on_ready)
 
+    def is_stale(self):
+        if not self.client.is_stale:
+            self.client.is_stale = True
+            self.client.stale_end_trigger = time.monotonic() + 60
+        elif self.client.is_stale:
+            if time.monotonic > self.client.stale_end_trigger:
+                self.client.is_stale = False
+                pipe = subprocess.Popen("sudo service crypto-price-bots restart", shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+
     @tasks.loop(seconds=loop_time*4)
     async def check_if_price_stale(self):
         guild = self.client.get_guild(696082479752413274)
@@ -96,10 +111,12 @@ class PriceBot:
         if cur_price - variability_threshold > nick_price or cur_price + variability_threshold < nick_price:
             # Assume there might be volume spike and just mention it *could* be stale
             await self.client.change_presence(status=discord.Status.idle)
+            self.is_stale()
 
         if cur_price - variability_threshold*2 > nick_price or cur_price + variability_threshold*2 < nick_price:
             # Now we have a larger problem
             await self.client.change_presence(status=discord.Status.dnd)
+            self.is_stale()
 
         # Repeat checks if it is combined bot
         if self.client.combined == True:
@@ -113,10 +130,12 @@ class PriceBot:
                 if cur_price - variability_threshold > status_price or cur_price + variability_threshold < status_price:
                     # Assume there might be volume spike and just mention it *could* be stale
                     await self.client.change_presence(status=discord.Status.idle)
+                    self.is_stale()
 
                 if cur_price - variability_threshold*2 > status_price or cur_price + variability_threshold*2 < status_price:
                     # Now we have a larger problem
                     await self.client.change_presence(status=discord.Status.dnd)
+                    self.is_stale()
 
     @tasks.loop(seconds=loop_time)
     async def update_price(self):
