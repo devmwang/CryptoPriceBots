@@ -39,6 +39,12 @@ def parse_price(price_input, cur_price):
     except IndexError or ValueError:
         return None
 
+def parse_alert_val(alert_val):
+    if alert_val is None:
+        return "Not Set"
+    else:
+        return ("$" + str(alert_val))
+
 
 class CommandHandler(commands.Cog):
     def __init__(self, client):
@@ -84,13 +90,13 @@ class CommandHandler(commands.Cog):
                         embed = discord.Embed(title=f"Current Alerts", color=0x00ff00)
 
                         embed.add_field(name="Asset:", value=f"{self.client.pairs[0]}")
-                        embed.add_field(name="Price up:", value=(None if self.client.prim_alert_up is None else ("$" + str(self.client.prim_alert_up))) or "Not Set")
-                        embed.add_field(name="Price down:", value=(None if self.client.prim_alert_down is None else ("$" + str(self.client.prim_alert_down))) or "Not Set")
+                        embed.add_field(name="Price up:", value=parse_alert_val(self.client.prim_alert_up))
+                        embed.add_field(name="Price down:", value=parse_alert_val(self.client.prim_alert_down))
 
                         if self.client.combined == True:
                             embed.add_field(name="Asset:", value=f"{self.client.pairs[1]}")
-                            embed.add_field(name="Price up:", value=(None if self.client.sec_alert_up is None else ("$" + str(self.client.sec_alert_up))) or "Not Set")
-                            embed.add_field(name="Price down:", value=(None if self.client.sec_alert_down is None else ("$" + str(self.client.sec_alert_down))) or "Not Set")
+                            embed.add_field(name="Price up:", value=parse_alert_val(self.client.sec_alert_up))
+                            embed.add_field(name="Price down:", value=parse_alert_val(self.client.sec_alert_down))
 
                         await button_ctx.send(embed=embed)
 
@@ -158,13 +164,13 @@ class CommandHandler(commands.Cog):
         if self.client.prim_alert_up is not None or self.client.prim_alert_down is not None or self.client.sec_alert_up is not None or self.client.sec_alert_down is not None:
             embed = discord.Embed(title=f"Current Alerts", color=0x00ff00)
             embed.add_field(name="Asset:", value=f"{self.client.pairs[0]}")
-            embed.add_field(name="Price up:", value=(None if self.client.prim_alert_up is None else ("$" + str(self.client.prim_alert_up))) or "Not Set")
-            embed.add_field(name="Price down:", value=(None if self.client.prim_alert_down is None else ("$" + str(self.client.prim_alert_down))) or "Not Set")
+            embed.add_field(name="Price up:", value=parse_alert_val(self.client.prim_alert_up))
+            embed.add_field(name="Price down:", value=parse_alert_val(self.client.prim_alert_down))
 
             if self.client.combined == True:
                 embed.add_field(name="Asset:", value=f"{self.client.pairs[1]}")
-                embed.add_field(name="Price up:", value=(None if self.client.sec_alert_up is None else ("$" + str(self.client.sec_alert_up))) or "Not Set")
-                embed.add_field(name="Price down:", value=(None if self.client.sec_alert_down is None else ("$" + str(self.client.sec_alert_down))) or "Not Set")
+                embed.add_field(name="Price up:", value=parse_alert_val(self.client.sec_alert_up))
+                embed.add_field(name="Price down:", value=parse_alert_val(self.client.sec_alert_down))
 
             await context.message.reply(embed=embed)
         await context.message.add_reaction("\U00002705")  # Add a reaction since bots without alerts don't reply
