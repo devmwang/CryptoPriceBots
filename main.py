@@ -1,4 +1,3 @@
-from ctypes import sizeof
 import discord
 import requests
 import json
@@ -62,7 +61,7 @@ class PriceBot:
         self.client = Bot(command_prefix='p!', intents=intents)
         self.slash = SlashCommand(self.client)
         self.client.load_extension('jishaku')
-        # self.client.load_extension('commandhandler')
+        self.client.load_extension('commandhandler')
 
         # Init for Price Alerts functionality
         self.client.prim_alert_up = None
@@ -73,15 +72,15 @@ class PriceBot:
         self.token = bot_token
 
         if (len(group) > 1):
-            self.combined = True
+            self.client.combined = True
         else:
-            self.combined = False
+            self.client.combined = False
 
-        self.group = group
-        self.pairs = []
+        self.client.group = group
+        self.client.pairs = []
 
-        for trading_pair in self.group:
-            self.pairs.append(re.sub('-PERP', '', trading_pair))
+        for trading_pair in self.client.group:
+            self.client.pairs.append(re.sub('-PERP', '', trading_pair))
 
         self.on_ready = self.client.event(self.on_ready)
 
@@ -91,7 +90,7 @@ class PriceBot:
         bot_member = guild.get_member(self.client.user.id)
 
         nick_price = float(re.findall(r"\d+\.\d+", bot_member.nick)[0])
-        cur_price = get_price(self.group[0])
+        cur_price = get_price(self.client.group[0])
         variability_threshold = cur_price * 0.01
         # If lower threshold is larger than displayed price or higher threshold is smaller than displayed price, we have a slight problem
         if cur_price - variability_threshold > nick_price or cur_price + variability_threshold < nick_price:
@@ -103,12 +102,12 @@ class PriceBot:
             await self.client.change_presence(status=discord.Status.dnd)
 
         # Repeat checks if it is combined bot
-        if self.combined == True:
+        if self.client.combined == True:
             # Activity is not immediately set on launch, so check that bot has activity first
             if len(bot_member.activities) != 0:
                 # Same as above code by vars changed to reflect secondary coin
                 status_price = float(re.findall(r"\d+\.\d+", bot_member.activities[0].name)[0])
-                cur_price = get_price(self.group[1])
+                cur_price = get_price(self.client.group[1])
                 variability_threshold = cur_price * 0.01
                 # If lower threshold is larger than displayed price or higher threshold is smaller than displayed price, we have a slight problem
                 if cur_price - variability_threshold > status_price or cur_price + variability_threshold < status_price:
@@ -123,15 +122,15 @@ class PriceBot:
     async def update_price(self):
         guild = self.client.get_guild(696082479752413274)
 
-        usd_price_1 = get_price(self.group[0])  
-        if self.combined == True:
-            usd_price_2 = get_price(self.group[1])
+        usd_price_1 = get_price(self.client.group[0])  
+        if self.client.combined == True:
+            usd_price_2 = get_price(self.client.group[1])
 
         conversion_ratio = get_usd_cad_conversion()
-        cad_price = usd_price_1 * conversion_ratio
+        cad_price_1 = usd_price_1 * conversion_ratio
 
         # Check if any alerts triggered
-        # TODO: Rewrite alert logic to check price for both tokens (if applicable)
+        # Check primary asset
         if self.client.prim_alert_up:
             alert_channel = self.client.get_channel(696082479752413277)
             alert_role = guild.get_role(798457594661437450)
@@ -145,6 +144,21 @@ class PriceBot:
                 await alert_channel.send(f"\U0001f4c9 {alert_role.mention} {self.client.user.mention} is below {self.client.prim_alert_down}.")
                 self.client.prim_alert_down = None
 
+        # Check secondary asset
+        if self.client.combined == True:
+            if self.client.sec_alert_up:
+                alert_channel = self.client.get_channel(696082479752413277)
+                alert_role = guild.get_role(798457594661437450)
+                if usd_price_2 > self.client.sec_alert_up:
+                    await alert_channel.send(f"\U0001f4c8 {alert_role.mention} {self.client.user.mention} is above {self.client.sec_alert_up}.")
+                    self.client.sec_alert_up = None
+            if self.client.sec_alert_down:
+                alert_channel = self.client.get_channel(696082479752413277)
+                alert_role = guild.get_role(798457594661437450)
+                if usd_price_2 < self.client.sec_alert_down:
+                    await alert_channel.send(f"\U0001f4c9 {alert_role.mention} {self.client.user.mention} is below {self.client.sec_alert_down}.")
+                    self.client.sec_alert_down = None
+
         # Format for bot users
         #
         # TICKER - $price.xx
@@ -156,20 +170,20 @@ class PriceBot:
         # 2nd Coin TICKER - $price.xx
 
 
-        await guild.me.edit(nick=f"{self.pairs[0]} - ${round(usd_price_1, 4)}")
+        await guild.me.edit(nick=f"{self.client.pairs[0]} - ${round(usd_price_1, 4)}")
 
-        if self.combined == True:
-            await self.client.change_presence(activity=discord.Game(f"{self.pairs[1]} - ${round(usd_price_2, 4)}"))
+        if self.client.combined == True:
+            await self.client.change_presence(activity=discord.Game(f"{self.client.pairs[1]} - ${round(usd_price_2, 4)}"))
         else:
-            await self.client.change_presence(activity=discord.Game(f"CA${round(cad_price, 4)}"))
+            await self.client.change_presence(activity=discord.Game(f"CA${round(cad_price_1, 4)}"))
 
     async def on_ready(self):
         self.update_price.start()
         self.check_if_price_stale.start()
-        if self.combined == True:
-            print(f"{self.pairs[0]}/{self.pairs[1]} loaded")
+        if self.client.combined == True:
+            print(f"{self.client.pairs[0]}/{self.client.pairs[1]} loaded")
         else:
-            print(f"{self.pairs[0]} loaded")
+            print(f"{self.client.pairs[0]} loaded")
 
     def start(self):
         return self.client.start(self.token)

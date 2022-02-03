@@ -81,50 +81,92 @@ class CommandHandler(commands.Cog):
                         except discord.errors.HTTPException as _e:
                             await button_ctx.send(str(_e))
                     if button_ctx.component['label'] == "View alerts":
-                        await button_ctx.send(f"Price up: {self.client.alert_up}\nPrice down: {self.client.alert_down}")
+                        embed = discord.Embed(title=f"Current Alerts", color=0x00ff00)
+
+                        embed.add_field(name="Asset:", value=f"{self.client.pairs[0]}")
+                        embed.add_field(name="Price up:", value=(None if self.client.prim_alert_up is None else ("$" + str(self.client.prim_alert_up))) or "Not Set")
+                        embed.add_field(name="Price down:", value=(None if self.client.prim_alert_down is None else ("$" + str(self.client.prim_alert_down))) or "Not Set")
+
+                        if self.client.combined == True:
+                            embed.add_field(name="Asset:", value=f"{self.client.pairs[1]}")
+                            embed.add_field(name="Price up:", value=(None if self.client.sec_alert_up is None else ("$" + str(self.client.sec_alert_up))) or "Not Set")
+                            embed.add_field(name="Price down:", value=(None if self.client.sec_alert_down is None else ("$" + str(self.client.sec_alert_down))) or "Not Set")
+
+                        await button_ctx.send(embed=embed)
+
                     if button_ctx.component['label'] == "Clear alerts":
-                        await button_ctx.send(f"Cleared alerts ({self.client.alert_up} up, {self.client.alert_down} down) for {self.client.user.mention}")
-                        self.client.alert_up = None
-                        self.client.alert_down = None
+                        await button_ctx.send(f"Cleared all alerts.")
+                        self.client.prim_alert_up = None
+                        self.client.prim_alert_down = None
+                        self.client.sec_alert_up = None
+                        self.client.sec_alert_down = None
             except asyncio.TimeoutError:
                 await msg.edit(components=None)
 
         # Set price alerts
-        elif m.content.startswith(f"<@{self.client.user.id}>") or m.content.startswith(f"<@!{self.client.user.id}>"):
-            mlist = m.content.split()  # Should return list: [mention, number]
-            # Retrieve the current display price from the bot's nickname
-            cur_price = float(re.findall(r"\d+\.\d+", m.guild.get_member(self.client.user.id).nick)[0])
+        # Updated price alert setter code to be compatible with combined bots
+        elif m.content.upper().startswith(self.client.pairs[0] or self.client.pairs[1]):
+            mlist = m.content.split()  # Should return list: [asset ticker, number]
+            ticker = mlist[0]
+            index = self.client.pairs.index(ticker.upper())
+            
+            # If primary asset: Retrieve the current display price from bot's nickname
+            # If secondary asset: Retrive the current display price from bot's activity
+            if index == 0:
+                curr_price = float(re.findall(r"\d+\.\d+", m.guild.get_member(self.client.user.id).nick)[0])
+            elif index == 1:
+                curr_price = float(re.findall(r"\d+\.\d+", m.guild.get_member(self.client.user.id).activities[0].name)[0])
+            else:
+                raise ReferenceError("Index of ticker not 0 or 1")
+            
+            # If alert price not valid: Tell user
+            # If alert price valid: Set alert
+            alertstring = ""
+            for i in range (1, len(mlist)):
+                alertstring += mlist[i]
 
-            # If the parsed alertprice is not valid, tell user
-            # Otherwise set the alert
-            try:
-                alertstring = mlist[1] + mlist[2]
-            except IndexError:
-                alertstring = mlist[1]
-            alertprice = parse_price(alertstring, cur_price)
+            alertprice = parse_price(alertstring, curr_price)
             if alertprice is None:
                 msg = await m.reply(f"Could not parse a price from `{alertstring}`.")
                 await asyncio.sleep(main.delete_cooldown)
                 await m.delete()
                 await msg.delete()
+            
+            if index == 0:
+                if alertprice > curr_price:
+                    self.client.prim_alert_up = alertprice
+                    await m.reply(f"Set alert for {self.client.pairs[index]} above ${alertprice}.")
+                elif alertprice < curr_price:
+                    self.client.prim_alert_down = alertprice
+                    await m.reply(f"Set alert for {self.client.pairs[index]} below ${alertprice}.")
+                else:
+                    await m.reply("BA DING")
 
-            elif alertprice > cur_price:
-                self.client.alert_up = alertprice
-                await m.reply(f"Set alert for {self.client.user.mention} above ${alertprice}.")
-
-            elif alertprice < cur_price:
-                self.client.alert_down = alertprice
-                await m.reply(f"Set alert for {self.client.user.mention} below ${alertprice}.")
-
-            else:
-                await m.reply("BA DING")
+            elif index == 1:
+                if alertprice > curr_price:
+                    self.client.sec_alert_up = alertprice
+                    await m.reply(f"Set alert for {self.client.pairs[index]} above ${alertprice}.")
+                elif alertprice < curr_price:
+                    self.client.sec_alert_down = alertprice
+                    await m.reply(f"Set alert for {self.client.pairs[index]} below ${alertprice}.")
+                else:
+                    await m.reply("BA DING")
 
     @commands.command(name="alerts")
     async def alerts(self, context):
         # If one of the alerts is not None, the bot replies with the alerts
-        if self.client.alert_up is not None or self.client.alert_down is not None:
-            await context.reply(f"Price up: {self.client.alert_up}"
-                                f"\nPrice down: {self.client.alert_down}")
+        if self.client.prim_alert_up is not None or self.client.prim_alert_down is not None or self.client.sec_alert_up is not None or self.client.sec_alert_down is not None:
+            embed = discord.Embed(title=f"Current Alerts", color=0x00ff00)
+            embed.add_field(name="Asset:", value=f"{self.client.pairs[0]}")
+            embed.add_field(name="Price up:", value=(None if self.client.prim_alert_up is None else ("$" + str(self.client.prim_alert_up))) or "Not Set")
+            embed.add_field(name="Price down:", value=(None if self.client.prim_alert_down is None else ("$" + str(self.client.prim_alert_down))) or "Not Set")
+
+            if self.client.combined == True:
+                embed.add_field(name="Asset:", value=f"{self.client.pairs[1]}")
+                embed.add_field(name="Price up:", value=(None if self.client.sec_alert_up is None else ("$" + str(self.client.sec_alert_up))) or "Not Set")
+                embed.add_field(name="Price down:", value=(None if self.client.sec_alert_down is None else ("$" + str(self.client.sec_alert_down))) or "Not Set")
+
+            await context.message.reply(embed=embed)
         await context.message.add_reaction("\U00002705")  # Add a reaction since bots without alerts don't reply
 
     @commands.command(name="ping")
