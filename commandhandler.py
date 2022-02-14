@@ -124,7 +124,7 @@ class CommandHandler(commands.Cog):
             else:
                 raise ReferenceError("Index of ticker not 0 or 1")
             
-            # If alert price not valid: Tell user
+            # If alert price not valid: Ignore since message could be generic
             # If alert price valid: Set alert
             alertstring = ""
             for i in range (1, len(mlist)):
@@ -132,10 +132,7 @@ class CommandHandler(commands.Cog):
 
             alertprice = parse_price(alertstring, curr_price)
             if alertprice is None:
-                msg = await m.reply(f"Could not parse a price from `{alertstring}`.")
-                await asyncio.sleep(main.delete_cooldown)
-                await m.delete()
-                await msg.delete()
+                return
             else:            
                 if index == 0:
                     if alertprice > curr_price:
