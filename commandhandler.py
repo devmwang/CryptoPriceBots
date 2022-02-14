@@ -3,6 +3,7 @@ import json
 import subprocess
 import time
 import re
+from turtle import clear
 
 import discord
 import requests
@@ -44,6 +45,61 @@ def parse_alert_val(alert_val):
         return "Not Set"
     else:
         return ("$" + str(alert_val))
+
+def set_alert(self, rank, curr_price, alert_price):
+    # Check if alert_price is bigger, equal to, or somaller than curr_price
+    if alert_price > curr_price:
+        price_movement = 'up'
+    elif alert_price < curr_price:
+        price_movement = 'down'
+    else:
+        price_movement = 'same'
+
+    # Only set alert if price_movement exists
+    if (price_movement != 'same'):
+        # Open JSON file with persistent alert prices
+        with open('price_alerts.json') as json_file:
+            data = json.load(json_file)
+
+            # Assign alert to proper JSON location
+            if price_movement == 'up':
+                data[self.client.pairs[rank].upper()]['up'] = alert_price
+            elif price_movement == 'down':
+                data[self.client.pairs[rank].upper()]['down'] = alert_price
+
+            # Dump in-memory JSON to persistent JSON file
+            with open('price_alerts.json', 'w') as outfile:
+                    json.dump(data, outfile, indent=4)
+
+    # Set client variable alert price
+    if price_movement == 'up':
+        self.client.prim_alert_up = alert_price
+        return (f"Set alert for {self.client.pairs[rank].upper()} above ${alert_price}.")
+    elif price_movement == 'down':
+        self.client.prim_alert_down = alert_price
+        return (f"Set alert for {self.client.pairs[rank].upper()} below ${alert_price}.")
+    else:
+        return ("BA DING")
+
+def clear_alert(self, rank, up_or_down):
+    # Open JSON file with persistent alert prices
+    with open('price_alerts.json') as json_file:
+        data = json.load(json_file)
+
+        if (up_or_down == 'up'):
+            data[self.client.pairs[rank].upper()]['up'] = None
+        elif (up_or_down == 'down'):
+            data[self.client.pairs[rank].upper()]['down'] = None
+    
+        # Dump in-memory JSON to persistent JSON file
+        with open('price_alerts.json', 'w') as outfile:
+                json.dump(data, outfile, indent=4)
+
+    # Clear client var alert prices
+    self.client.prim_alert_up = None
+    self.client.prim_alert_down = None
+    self.client.sec_alert_up = None
+    self.client.sec_alert_down = None
 
 
 class CommandHandler(commands.Cog):
@@ -101,10 +157,11 @@ class CommandHandler(commands.Cog):
 
                     if button_ctx.component['label'] == "Clear alerts":
                         await button_ctx.send(f"Cleared all alerts.")
-                        self.client.prim_alert_up = None
-                        self.client.prim_alert_down = None
-                        self.client.sec_alert_up = None
-                        self.client.sec_alert_down = None
+                        clear_alert(self, 0, 'up')
+                        clear_alert(self, 0, 'down')
+                        clear_alert(self, 1, 'up')
+                        clear_alert(self, 1, 'down')
+
             except asyncio.TimeoutError:
                 await msg.edit(components=None)
 
@@ -130,29 +187,31 @@ class CommandHandler(commands.Cog):
             for i in range (1, len(mlist)):
                 alertstring += mlist[i]
 
-            alertprice = parse_price(alertstring, curr_price)
-            if alertprice is None:
+            alert_price = parse_price(alertstring, curr_price)
+            if alert_price is None:
                 return
-            else:            
-                if index == 0:
-                    if alertprice > curr_price:
-                        self.client.prim_alert_up = alertprice
-                        await m.reply(f"Set alert for {self.client.pairs[index]} above ${alertprice}.")
-                    elif alertprice < curr_price:
-                        self.client.prim_alert_down = alertprice
-                        await m.reply(f"Set alert for {self.client.pairs[index]} below ${alertprice}.")
-                    else:
-                        await m.reply("BA DING")
+            else:
+                await m.reply(set_alert(self, index, curr_price, alert_price))
 
-                elif index == 1:
-                    if alertprice > curr_price:
-                        self.client.sec_alert_up = alertprice
-                        await m.reply(f"Set alert for {self.client.pairs[index]} above ${alertprice}.")
-                    elif alertprice < curr_price:
-                        self.client.sec_alert_down = alertprice
-                        await m.reply(f"Set alert for {self.client.pairs[index]} below ${alertprice}.")
-                    else:
-                        await m.reply("BA DING")
+                # if index == 0:
+                #     if alertprice > curr_price:
+                #         self.client.prim_alert_up = alertprice
+                #         await m.reply(f"Set alert for {self.client.pairs[index]} above ${alertprice}.")
+                #     elif alertprice < curr_price:
+                #         self.client.prim_alert_down = alertprice
+                #         await m.reply(f"Set alert for {self.client.pairs[index]} below ${alertprice}.")
+                #     else:
+                #         await m.reply("BA DING")
+
+                # elif index == 1:
+                #     if alertprice > curr_price:
+                #         self.client.sec_alert_up = alertprice
+                #         await m.reply(f"Set alert for {self.client.pairs[index]} above ${alertprice}.")
+                #     elif alertprice < curr_price:
+                #         self.client.sec_alert_down = alertprice
+                #         await m.reply(f"Set alert for {self.client.pairs[index]} below ${alertprice}.")
+                #     else:
+                #         await m.reply("BA DING")
 
     @commands.command(name="alerts")
     async def alerts(self, context):

@@ -57,6 +57,32 @@ def get_usd_cad_conversion():
     except:
         return 1 / float(json.loads(requests.get('https://ftx.com/api/markets/CAD/USD').content)['result']['last'])
 
+def clear_alert(self, rank, up_or_down):
+    # Open JSON file with persistent alert prices
+    with open('price_alerts.json') as json_file:
+        data = json.load(json_file)
+
+        if (up_or_down == 'up'):
+            data[self.client.pairs[rank].upper()]['up'] = None
+        elif (up_or_down == 'down'):
+            data[self.client.pairs[rank].upper()]['down'] = None
+    
+        # Dump in-memory JSON to persistent JSON file
+        with open('price_alerts.json', 'w') as outfile:
+                json.dump(data, outfile, indent=4)
+
+    # Clear client var alert prices
+    if (rank == 0):
+        if (up_or_down == 'up'):
+            self.client.prim_alert_up = None
+        elif (up_or_down == 'down'):
+            self.client.prim_alert_down = None
+    elif (rank == 1):
+        if (up_or_down == 'up'):
+            self.client.sec_alert_up = None
+        elif (up_or_down == 'down'):
+            self.client.sec_alert_down = None
+
 
 class PriceBot:
     def __init__(self, bot_token, group):
@@ -65,11 +91,11 @@ class PriceBot:
         self.client.load_extension('jishaku')
         self.client.load_extension('commandhandler')
 
-        # Init for Price Alerts functionality
-        self.client.prim_alert_up = None
-        self.client.prim_alert_down = None
-        self.client.sec_alert_up = None
-        self.client.sec_alert_down = None
+        # # Init for Price Alerts functionality
+        # self.client.prim_alert_up = None
+        # self.client.prim_alert_down = None
+        # self.client.sec_alert_up = None
+        # self.client.sec_alert_down = None
 
         self.client.is_stale = False
         self.client.stale_end_trigger = None
@@ -86,6 +112,16 @@ class PriceBot:
 
         for trading_pair in self.client.group:
             self.client.pairs.append(re.sub('-PERP', '', trading_pair))
+
+        # Load persistent alert prices into class variables
+        with open('price_alerts.json') as json_file:
+            data = json.load(json_file)
+
+            self.client.prim_alert_up = data[self.client.pairs[0]]['up']
+            self.client.prim_alert_down = data[self.client.pairs[0]]['down']
+            self.client.sec_alert_up = data[self.client.pairs[1]]['up']
+            self.client.sec_alert_down = data[self.client.pairs[1]]['down']
+
 
         self.on_ready = self.client.event(self.on_ready)
 
@@ -155,13 +191,13 @@ class PriceBot:
             alert_role = guild.get_role(798457594661437450)
             if usd_price_1 > self.client.prim_alert_up:
                 await alert_channel.send(f"\U0001f4c8 {alert_role.mention} {self.client.user.mention} is above {self.client.prim_alert_up}.")
-                self.client.prim_alert_up = None
+                clear_alert(self, 0, 'up')
         if self.client.prim_alert_down:
             alert_channel = self.client.get_channel(696082479752413277)
             alert_role = guild.get_role(798457594661437450)
             if usd_price_1 < self.client.prim_alert_down:
                 await alert_channel.send(f"\U0001f4c9 {alert_role.mention} {self.client.user.mention} is below {self.client.prim_alert_down}.")
-                self.client.prim_alert_down = None
+                clear_alert(self, 0, 'down')
 
         # Check secondary asset
         if self.client.combined == True:
@@ -170,13 +206,13 @@ class PriceBot:
                 alert_role = guild.get_role(798457594661437450)
                 if usd_price_2 > self.client.sec_alert_up:
                     await alert_channel.send(f"\U0001f4c8 {alert_role.mention} {self.client.user.mention} is above {self.client.sec_alert_up}.")
-                    self.client.sec_alert_up = None
+                    clear_alert(self, 1, 'up')
             if self.client.sec_alert_down:
                 alert_channel = self.client.get_channel(696082479752413277)
                 alert_role = guild.get_role(798457594661437450)
                 if usd_price_2 < self.client.sec_alert_down:
                     await alert_channel.send(f"\U0001f4c9 {alert_role.mention} {self.client.user.mention} is below {self.client.sec_alert_down}.")
-                    self.client.sec_alert_down = None
+                    clear_alert(self, 1, 'down')
 
         # Format for bot users
         #
