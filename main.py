@@ -94,7 +94,7 @@ class PriceBot:
             self.client.is_stale = True
             self.client.stale_end_trigger = time.monotonic() + 60
         elif self.client.is_stale:
-            if time.monotonic > self.client.stale_end_trigger:
+            if int(time.monotonic) > int(self.client.stale_end_trigger):
                 self.client.is_stale = False
                 pipe = subprocess.Popen("sudo service crypto-price-bots restart", shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
