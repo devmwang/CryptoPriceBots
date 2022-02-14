@@ -3,7 +3,6 @@ import json
 import subprocess
 import time
 import re
-from turtle import clear
 
 import discord
 import requests
