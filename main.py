@@ -91,12 +91,6 @@ class PriceBot:
         self.client.load_extension('jishaku')
         self.client.load_extension('commandhandler')
 
-        # # Init for Price Alerts functionality
-        # self.client.prim_alert_up = None
-        # self.client.prim_alert_down = None
-        # self.client.sec_alert_up = None
-        # self.client.sec_alert_down = None
-
         self.client.is_stale = False
         self.client.stale_end_trigger = None
 
