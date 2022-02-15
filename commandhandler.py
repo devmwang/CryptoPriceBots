@@ -71,12 +71,20 @@ def set_alert(self, rank, curr_price, alert_price):
                     json.dump(data, outfile, indent=4)
 
     # Set client variable alert price
-    if price_movement == 'up':
-        self.client.prim_alert_up = alert_price
-        return (f"Set alert for {self.client.pairs[rank].upper()} above ${alert_price}.")
-    elif price_movement == 'down':
-        self.client.prim_alert_down = alert_price
-        return (f"Set alert for {self.client.pairs[rank].upper()} below ${alert_price}.")
+    if (rank == 0):
+        if price_movement == 'up':
+            self.client.prim_alert_up = alert_price
+            return (f"Set alert for {self.client.pairs[rank].upper()} above ${alert_price}.")
+        elif price_movement == 'down':
+            self.client.prim_alert_down = alert_price
+            return (f"Set alert for {self.client.pairs[rank].upper()} below ${alert_price}.")
+    elif (rank == 1):
+        if price_movement == 'up':
+            self.client.sec_alert_up = alert_price
+            return (f"Set alert for {self.client.pairs[rank].upper()} above ${alert_price}.")
+        elif price_movement == 'down':
+            self.client.sec_alert_down = alert_price
+            return (f"Set alert for {self.client.pairs[rank].upper()} below ${alert_price}.")
     else:
         return ("BA DING")
 
@@ -95,10 +103,16 @@ def clear_alert(self, rank, up_or_down):
                 json.dump(data, outfile, indent=4)
 
     # Clear client var alert prices
-    self.client.prim_alert_up = None
-    self.client.prim_alert_down = None
-    self.client.sec_alert_up = None
-    self.client.sec_alert_down = None
+    if (rank == 0):
+        if (up_or_down == 'up'):
+            self.client.prim_alert_up = None
+        elif (up_or_down == 'down'):
+            self.client.prim_alert_down = None
+    elif (rank == 1):
+        if (up_or_down == 'up'):
+            self.client.sec_alert_up = None
+        elif (up_or_down == 'down'):
+            self.client.sec_alert_down = None
 
 
 class CommandHandler(commands.Cog):
@@ -165,6 +179,39 @@ class CommandHandler(commands.Cog):
                 await msg.edit(components=None)
 
         # Set price alerts
+        # * BETA: Intelligent command setter
+        # * User only needs to mention the relevant price bot, it will then algorithmically determine the proper pair to assign it to
+        elif m.content.startswith(f"<@{self.client.user.id}>") or m.content.startswith(f"<@!{self.client.user.id}>"):
+            mlist = m.content.split()  # Should return list: [asset ticker, number]
+            ticker = mlist[0]
+            
+            bot_member = m.guild.get_member(self.client.user.id)
+
+            prim_curr_price = float(re.findall(r"\d+\.\d+", bot_member.nick)[0])
+            sec_curr_price = float(re.findall(r"\d+\.\d+", bot_member.activities[0].name)[0])
+
+            # If alert price not valid: Ignore since message could be generic
+            # If alert price valid: Set alert
+            alertstring = ""
+            for i in range (1, len(mlist)):
+                alertstring += mlist[i]
+
+            prim_alert_price = parse_price(alertstring, prim_curr_price)
+            sec_alert_price = parse_price(alertstring, sec_curr_price)
+
+            if (prim_alert_price is None) and (sec_alert_price is None):
+                return
+            else:
+                prim_delta = abs(prim_curr_price - prim_alert_price)
+                sec_delta = abs(sec_curr_price - sec_alert_price)
+
+                if prim_delta < sec_delta:
+                    await m.reply(set_alert(self, 0, prim_curr_price, prim_alert_price))
+                elif sec_delta < prim_delta:
+                    await m.reply(set_alert(self, 1, sec_curr_price, sec_alert_price))
+                else:
+                    await m.reply('Specified alert price is too close to the current price of both assets. Please try a different value, or use the targeted command using syntax ```ticker alert_price```.')
+
         # Updated price alert setter code to be compatible with combined bots
         elif m.content.upper().startswith(self.client.pairs[0]) or m.content.upper().startswith(self.client.pairs[1]):
             mlist = m.content.split()  # Should return list: [asset ticker, number]
