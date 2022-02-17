@@ -27,12 +27,12 @@ groups = {
     #     'MATIC-PERP',
     # ],
     'OTE1Nzg0OTI4MTE1OTQ5NTY5.YagpLQ.swfkjBpwoSp9JpIknVD134xld_U': [
+        'MATIC-PERP',
         'LRC-PERP',
-        'DOT-PERP',
     ],
-    'OTMyNDQyMTE2NTY1NjU5NzY4.YeTCZA.Hg0jgaIPa8dVPpo1M_kKTQREB4I': [
-        'RAY-PERP',
-        'SRM-PERP',
+    'OTM4ODQ1MjE5ODIxMDkyOTE3.YfwNvw.6HcRPj1_YbZBOd93AxSRaBVVCA0': [
+        'LUNA-PERP',
+        'DOT-PERP'
     ],
     'OTA4MjE3MDk2NTc0NDY4MTM2.YYyhFQ.eMtJCaZesp94kX_ZbBL1XZWrq6k': [
         'UNI-PERP',
