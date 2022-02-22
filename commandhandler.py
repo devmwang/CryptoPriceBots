@@ -182,8 +182,8 @@ class CommandHandler(commands.Cog):
         # * BETA: Intelligent command setter
         # * User only needs to mention the relevant price bot, it will then algorithmically determine the proper pair to assign it to
         elif m.content.startswith(f"<@{self.client.user.id}>") or m.content.startswith(f"<@!{self.client.user.id}>"):
-            mlist = m.content.split()  # Should return list: [asset ticker, number]
-            ticker = mlist[0]
+            m_list = m.content.split()  # Should return list: [asset ticker, number]
+            ticker = m_list[0]
             
             bot_member = m.guild.get_member(self.client.user.id)
 
@@ -193,8 +193,8 @@ class CommandHandler(commands.Cog):
             # If alert price not valid: Ignore since message could be generic
             # If alert price valid: Set alert
             alertstring = ""
-            for i in range (1, len(mlist)):
-                alertstring += mlist[i]
+            for i in range (1, len(m_list)):
+                alertstring += m_list[i]
 
             prim_alert_price = parse_price(alertstring, prim_curr_price)
             sec_alert_price = parse_price(alertstring, sec_curr_price)
@@ -214,8 +214,8 @@ class CommandHandler(commands.Cog):
 
         # Updated price alert setter code to be compatible with combined bots
         elif m.content.upper().startswith(self.client.pairs[0]) or m.content.upper().startswith(self.client.pairs[1]):
-            mlist = m.content.split()  # Should return list: [asset ticker, number]
-            ticker = mlist[0]
+            m_list = m.content.split()  # Should return list: [asset ticker, number]
+            ticker = m_list[0]
             index = self.client.pairs.index(ticker.upper())
             
             # If primary asset: Retrieve the current display price from bot's nickname
@@ -230,8 +230,8 @@ class CommandHandler(commands.Cog):
             # If alert price not valid: Ignore since message could be generic
             # If alert price valid: Set alert
             alertstring = ""
-            for i in range (1, len(mlist)):
-                alertstring += mlist[i]
+            for i in range (1, len(m_list)):
+                alertstring += m_list[i]
 
             alert_price = parse_price(alertstring, curr_price)
             if alert_price is None:
