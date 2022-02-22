@@ -179,7 +179,7 @@ class CommandHandler(commands.Cog):
                 await msg.edit(components=None)
 
         # Set price alerts
-        # * BETA: Intelligent command setter
+        # * Intelligent command setter
         # * User only needs to mention the relevant price bot, it will then algorithmically determine the proper pair to assign it to
         elif m.content.startswith(f"<@{self.client.user.id}>") or m.content.startswith(f"<@!{self.client.user.id}>"):
             m_list = m.content.split()  # Should return list: [asset ticker, number]
@@ -202,62 +202,22 @@ class CommandHandler(commands.Cog):
             if (prim_alert_price is None) and (sec_alert_price is None):
                 return
             else:
-                prim_delta = abs(prim_curr_price - prim_alert_price)
-                sec_delta = abs(sec_curr_price - sec_alert_price)
-
-                if prim_delta < sec_delta:
-                    await m.reply(set_alert(self, 0, prim_curr_price, prim_alert_price))
-                elif sec_delta < prim_delta:
-                    await m.reply(set_alert(self, 1, sec_curr_price, sec_alert_price))
+                # If override is specified, bypass guesser and set alert for specified asset directly
+                if "override" in m.content:
+                    if self.client.pairs[0] in m.content.upper():
+                        await m.reply(set_alert(self, 0, prim_curr_price, prim_alert_price))
+                    if self.client.pairs[1] in m.content.upper():
+                        await m.reply(set_alert(self, 1, sec_curr_price, sec_alert_price))
                 else:
-                    await m.reply('Specified alert price is too close to the current price of both assets. Please try a different value, or use the targeted command using syntax ```ticker alert_price```.')
+                    prim_delta = abs(prim_curr_price - prim_alert_price)
+                    sec_delta = abs(sec_curr_price - sec_alert_price)
 
-        # Updated price alert setter code to be compatible with combined bots
-        elif m.content.upper().startswith(self.client.pairs[0]) or m.content.upper().startswith(self.client.pairs[1]):
-            m_list = m.content.split()  # Should return list: [asset ticker, number]
-            ticker = m_list[0]
-            index = self.client.pairs.index(ticker.upper())
-            
-            # If primary asset: Retrieve the current display price from bot's nickname
-            # If secondary asset: Retrive the current display price from bot's activity
-            if index == 0:
-                curr_price = float(re.findall(r"\d+\.\d+", m.guild.get_member(self.client.user.id).nick)[0])
-            elif index == 1:
-                curr_price = float(re.findall(r"\d+\.\d+", m.guild.get_member(self.client.user.id).activities[0].name)[0])
-            else:
-                raise ReferenceError("Index of ticker not 0 or 1")
-            
-            # If alert price not valid: Ignore since message could be generic
-            # If alert price valid: Set alert
-            alertstring = ""
-            for i in range (1, len(m_list)):
-                alertstring += m_list[i]
-
-            alert_price = parse_price(alertstring, curr_price)
-            if alert_price is None:
-                return
-            else:
-                await m.reply(set_alert(self, index, curr_price, alert_price))
-
-                # if index == 0:
-                #     if alertprice > curr_price:
-                #         self.client.prim_alert_up = alertprice
-                #         await m.reply(f"Set alert for {self.client.pairs[index]} above ${alertprice}.")
-                #     elif alertprice < curr_price:
-                #         self.client.prim_alert_down = alertprice
-                #         await m.reply(f"Set alert for {self.client.pairs[index]} below ${alertprice}.")
-                #     else:
-                #         await m.reply("BA DING")
-
-                # elif index == 1:
-                #     if alertprice > curr_price:
-                #         self.client.sec_alert_up = alertprice
-                #         await m.reply(f"Set alert for {self.client.pairs[index]} above ${alertprice}.")
-                #     elif alertprice < curr_price:
-                #         self.client.sec_alert_down = alertprice
-                #         await m.reply(f"Set alert for {self.client.pairs[index]} below ${alertprice}.")
-                #     else:
-                #         await m.reply("BA DING")
+                    if prim_delta < sec_delta:
+                        await m.reply(set_alert(self, 0, prim_curr_price, prim_alert_price))
+                    elif sec_delta < prim_delta:
+                        await m.reply(set_alert(self, 1, sec_curr_price, sec_alert_price))
+                    else:
+                        await m.reply('Specified alert price is too close to the current price of both assets. Please try a different value, or use the targeted command using syntax ```ticker alert_price```.')
 
     @commands.command(name="alerts")
     async def alerts(self, context):
