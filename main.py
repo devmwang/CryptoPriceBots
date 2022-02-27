@@ -128,11 +128,11 @@ class PriceBot:
                         # Check Alerts (Since every iteration loop only gets new data for one asset, we only need to check alert on one asset)
                         if self.client.alert_up[group_index]:
                             if self.client.usd_price[group_index] > self.client.alert_up[group_index]:
-                                await alert_channel.send(f"\U0001f4c8 {alert_role.mention} {self.client.user.mention} is above {self.client.alert_up[group_index]}.")
+                                await alert_channel.send(f"\U0001f4c8 {alert_role.mention} {self.client.pairs[group_index]} is above {self.client.alert_up[group_index]}.")
                                 alert_handler.clear_alert(self, [group_index], 'up')
                         if self.client.alert_down[group_index]:
                             if self.client.usd_price[group_index] < self.client.alert_down[group_index]:
-                                await alert_channel.send(f"\U0001f4c9 {alert_role.mention} {self.client.user.mention} is below {self.client.alert_down[group_index]}.")
+                                await alert_channel.send(f"\U0001f4c9 {alert_role.mention} {self.client.pairs[group_index]} is below {self.client.alert_down[group_index]}.")
                                 alert_handler.clear_alert(self, [group_index], 'down')
 
                         # Get currently displayed prices from Discord API
