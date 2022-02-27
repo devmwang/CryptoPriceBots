@@ -3,7 +3,6 @@ import json
 import subprocess
 import time
 import re
-
 import discord
 import requests
 import main
@@ -11,6 +10,8 @@ from discord.ext import commands
 from discord_slash.utils.manage_components import create_button, create_actionrow, wait_for_component
 from discord_slash.model import ButtonStyle
 from discord_slash import ComponentContext
+
+import alert_handler
 
 
 def get_usd_cad_conversion():
@@ -45,80 +46,18 @@ def parse_alert_val(alert_val):
     else:
         return ("$" + str(alert_val))
 
-def set_alert(self, rank, curr_price, alert_price):
-    # Check if alert_price is bigger, equal to, or somaller than curr_price
-    if alert_price > curr_price:
-        price_movement = 'up'
-    elif alert_price < curr_price:
-        price_movement = 'down'
+def parse_single_multi_val(num, string):
+    if (num == 1):
+        return string
     else:
-        price_movement = 'same'
-
-    # Only set alert if price_movement exists
-    if (price_movement != 'same'):
-        # Open JSON file with persistent alert prices
-        with open('price_alerts.json') as json_file:
-            data = json.load(json_file)
-
-            # Assign alert to proper JSON location
-            if price_movement == 'up':
-                data[self.client.pairs[rank].upper()]['up'] = alert_price
-            elif price_movement == 'down':
-                data[self.client.pairs[rank].upper()]['down'] = alert_price
-
-            # Dump in-memory JSON to persistent JSON file
-            with open('price_alerts.json', 'w') as outfile:
-                    json.dump(data, outfile, indent=4)
-
-    # Set client variable alert price
-    if (rank == 0):
-        if price_movement == 'up':
-            self.client.prim_alert_up = alert_price
-            return (f"Set alert for {self.client.pairs[rank].upper()} above ${alert_price}.")
-        elif price_movement == 'down':
-            self.client.prim_alert_down = alert_price
-            return (f"Set alert for {self.client.pairs[rank].upper()} below ${alert_price}.")
-    elif (rank == 1):
-        if price_movement == 'up':
-            self.client.sec_alert_up = alert_price
-            return (f"Set alert for {self.client.pairs[rank].upper()} above ${alert_price}.")
-        elif price_movement == 'down':
-            self.client.sec_alert_down = alert_price
-            return (f"Set alert for {self.client.pairs[rank].upper()} below ${alert_price}.")
-    else:
-        return ("BA DING")
-
-def clear_alert(self, rank, up_or_down):
-    # Open JSON file with persistent alert prices
-    with open('price_alerts.json') as json_file:
-        data = json.load(json_file)
-
-        if (up_or_down == 'up'):
-            data[self.client.pairs[rank].upper()]['up'] = None
-        elif (up_or_down == 'down'):
-            data[self.client.pairs[rank].upper()]['down'] = None
-    
-        # Dump in-memory JSON to persistent JSON file
-        with open('price_alerts.json', 'w') as outfile:
-                json.dump(data, outfile, indent=4)
-
-    # Clear client var alert prices
-    if (rank == 0):
-        if (up_or_down == 'up'):
-            self.client.prim_alert_up = None
-        elif (up_or_down == 'down'):
-            self.client.prim_alert_down = None
-    elif (rank == 1):
-        if (up_or_down == 'up'):
-            self.client.sec_alert_up = None
-        elif (up_or_down == 'down'):
-            self.client.sec_alert_down = None
+        return string + 's'
 
 
 class CommandHandler(commands.Cog):
     def __init__(self, client):
         self.client = client
 
+    
     @commands.Cog.listener()
     async def on_message(self, m):
         # On mention activities
@@ -158,22 +97,18 @@ class CommandHandler(commands.Cog):
                         embed = discord.Embed(title=f"Current Alerts", color=0x00ff00)
 
                         embed.add_field(name="Asset:", value=f"{self.client.pairs[0]}")
-                        embed.add_field(name="Price up:", value=parse_alert_val(self.client.prim_alert_up))
-                        embed.add_field(name="Price down:", value=parse_alert_val(self.client.prim_alert_down))
+                        embed.add_field(name="Price up:", value=parse_alert_val(self.client.alert_up[0]))
+                        embed.add_field(name="Price down:", value=parse_alert_val(self.client.alert_down[0]))
 
-                        if self.client.combined == True:
-                            embed.add_field(name="Asset:", value=f"{self.client.pairs[1]}")
-                            embed.add_field(name="Price up:", value=parse_alert_val(self.client.sec_alert_up))
-                            embed.add_field(name="Price down:", value=parse_alert_val(self.client.sec_alert_down))
+                        embed.add_field(name="Asset:", value=f"{self.client.pairs[1]}")
+                        embed.add_field(name="Price up:", value=parse_alert_val(self.client.alert_up[1]))
+                        embed.add_field(name="Price down:", value=parse_alert_val(self.client.alert_down[1]))
 
                         await button_ctx.send(embed=embed)
 
                     if button_ctx.component['label'] == "Clear alerts":
                         await button_ctx.send(f"Cleared all alerts.")
-                        clear_alert(self, 0, 'up')
-                        clear_alert(self, 0, 'down')
-                        clear_alert(self, 1, 'up')
-                        clear_alert(self, 1, 'down')
+                        alert_handler.clear_all_alerts(self)
 
             except asyncio.TimeoutError:
                 await msg.edit(components=None)
@@ -205,36 +140,52 @@ class CommandHandler(commands.Cog):
                 # If override is specified, bypass guesser and set alert for specified asset directly
                 if "override" in m.content:
                     if self.client.pairs[0] in m.content.upper():
-                        await m.reply(set_alert(self, 0, prim_curr_price, prim_alert_price))
+                        await m.reply(alert_handler.set_alert(self, 0, prim_curr_price, prim_alert_price))
                     if self.client.pairs[1] in m.content.upper():
-                        await m.reply(set_alert(self, 1, sec_curr_price, sec_alert_price))
+                        await m.reply(alert_handler.set_alert(self, 1, sec_curr_price, sec_alert_price))
                 else:
                     prim_delta = abs(prim_curr_price - prim_alert_price)
                     sec_delta = abs(sec_curr_price - sec_alert_price)
 
                     if prim_delta < sec_delta:
-                        await m.reply(set_alert(self, 0, prim_curr_price, prim_alert_price))
+                        await m.reply(alert_handler.set_alert(self, 0, prim_curr_price, prim_alert_price))
                     elif sec_delta < prim_delta:
-                        await m.reply(set_alert(self, 1, sec_curr_price, sec_alert_price))
+                        await m.reply(alert_handler.set_alert(self, 1, sec_curr_price, sec_alert_price))
                     else:
                         await m.reply('Specified alert price is too close to the current price of both assets. Please try a different value, or use the targeted command using syntax ```ticker alert_price```.')
-
+    
     @commands.command(name="alerts")
     async def alerts(self, context):
+        print(self.client.pairs[0])
+
         # If one of the alerts is not None, the bot replies with the alerts
-        if self.client.prim_alert_up is not None or self.client.prim_alert_down is not None or self.client.sec_alert_up is not None or self.client.sec_alert_down is not None:
+        if self.client.alert_up[0] is not None or self.client.alert_down[0] is not None or self.client.alert_up[1] is not None or self.client.alert_down[1] is not None:
             embed = discord.Embed(title=f"Current Alerts", color=0x00ff00)
             embed.add_field(name="Asset:", value=f"{self.client.pairs[0]}")
-            embed.add_field(name="Price up:", value=parse_alert_val(self.client.prim_alert_up))
-            embed.add_field(name="Price down:", value=parse_alert_val(self.client.prim_alert_down))
+            embed.add_field(name="Price up:", value=parse_alert_val(self.client.alert_up[0]))
+            embed.add_field(name="Price down:", value=parse_alert_val(self.client.alert_down[0]))
 
-            if self.client.combined == True:
-                embed.add_field(name="Asset:", value=f"{self.client.pairs[1]}")
-                embed.add_field(name="Price up:", value=parse_alert_val(self.client.sec_alert_up))
-                embed.add_field(name="Price down:", value=parse_alert_val(self.client.sec_alert_down))
+            embed.add_field(name="Asset:", value=f"{self.client.pairs[1]}")
+            embed.add_field(name="Price up:", value=parse_alert_val(self.client.alert_up[1]))
+            embed.add_field(name="Price down:", value=parse_alert_val(self.client.alert_up[1]))
 
             await context.message.reply(embed=embed)
         await context.message.add_reaction("\U00002705")  # Add a reaction since bots without alerts don't reply
+
+    @commands.command(name="uptime")
+    async def uptime(self, context):
+        await context.send(f"{self.client.pairs[0]}/{self.client.pairs[1]} price bot online since <t:{self.client.start_time}> (<t:{self.client.start_time}:R>)")
+
+    @commands.command(name="last")
+    async def last(self, context):
+        await context.send(f"""{self.client.pairs[0]}: Last websocket message received on <t:{self.client.last_ws_update[0]}:D> at <t:{self.client.last_ws_update[0]}:t> (<t:{self.client.last_ws_update[0]}:R>)
+{self.client.pairs[1]}: Last websocket message received on <t:{self.client.last_ws_update[1]}:D> at <t:{self.client.last_ws_update[1]}:t> (<t:{self.client.last_ws_update[1]}:R>)""")
+
+    @commands.command(name="requests")
+    async def requests(self, context):
+        await context.send(f"""Price Bot: {self.client.discord_api_gets} {parse_single_multi_val(self.client.discord_api_gets, "GET")} to Discord API since <t:{self.client.start_time}>  (<t:{self.client.last_ws_update[1]}:R>).
+{self.client.pairs[0]}: {self.client.discord_api_posts[0]} {parse_single_multi_val(self.client.discord_api_posts[0], "POST")} to Discord API since <t:{self.client.start_time}> (<t:{self.client.last_ws_update[1]}:R>).
+{self.client.pairs[1]}: {self.client.discord_api_posts[1]} {parse_single_multi_val(self.client.discord_api_posts[1], "POST")} to Discord API since <t:{self.client.start_time}> (<t:{self.client.last_ws_update[1]}:R>).""")
 
     @commands.command(name="ping")
     async def ping(self, context):
@@ -263,6 +214,10 @@ WS API Heartbeat: `{int(self.client.latency * 1000)}ms`""")
                     raise asyncio.TimeoutError
             except asyncio.TimeoutError:
                 await voice_client.disconnect()
+
+    @commands.command(name="force")
+    async def force(self, context):
+        pass
 
 
 def setup(client):

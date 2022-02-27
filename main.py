@@ -5,9 +5,12 @@ import json
 import re
 import asyncio
 import time
+import websockets
 from discord.ext import tasks
 from discord.ext.commands import Bot
 from discord_slash import SlashCommand
+
+import alert_handler
 
 
 groups = {
@@ -49,6 +52,7 @@ intents = discord.Intents.default()
 intents.members = True
 delete_cooldown = 3
 loop_time = 12
+variability = 0.0015
 
 
 def get_usd_cad_conversion():
@@ -57,49 +61,27 @@ def get_usd_cad_conversion():
     except:
         return 1 / float(json.loads(requests.get('https://ftx.com/api/markets/CAD/USD').content)['result']['last'])
 
-def clear_alert(self, rank, up_or_down):
-    # Open JSON file with persistent alert prices
-    with open('price_alerts.json') as json_file:
-        data = json.load(json_file)
-
-        if (up_or_down == 'up'):
-            data[self.client.pairs[rank].upper()]['up'] = None
-        elif (up_or_down == 'down'):
-            data[self.client.pairs[rank].upper()]['down'] = None
-    
-        # Dump in-memory JSON to persistent JSON file
-        with open('price_alerts.json', 'w') as outfile:
-                json.dump(data, outfile, indent=4)
-
-    # Clear client var alert prices
-    if (rank == 0):
-        if (up_or_down == 'up'):
-            self.client.prim_alert_up = None
-        elif (up_or_down == 'down'):
-            self.client.prim_alert_down = None
-    elif (rank == 1):
-        if (up_or_down == 'up'):
-            self.client.sec_alert_up = None
-        elif (up_or_down == 'down'):
-            self.client.sec_alert_down = None
-
 
 class PriceBot:
     def __init__(self, bot_token, group):
         self.client = Bot(command_prefix='p!', intents=intents)
         self.slash = SlashCommand(self.client)
         self.client.load_extension('jishaku')
-        self.client.load_extension('commandhandler')
+        self.client.load_extension('command_handler')
+        
+        self.token = bot_token
+
+        self.client.paused = False
+
+        self.client.last_ws_update = [None, None]
+        self.client.discord_api_gets = 0
+        self.client.discord_api_posts = [0, 0]
+        self.client.start_time = int(time.time())
+
+        self.client.usd_price = [None, None]
 
         self.client.is_stale = False
         self.client.stale_end_trigger = None
-
-        self.token = bot_token
-
-        if (len(group) > 1):
-            self.client.combined = True
-        else:
-            self.client.combined = False
 
         self.client.group = group
         self.client.pairs = []
@@ -107,106 +89,119 @@ class PriceBot:
         for trading_pair in self.client.group:
             self.client.pairs.append(re.sub('-PERP', '', trading_pair))
 
-        # Load persistent alert prices into class variables
+        # Init persistent alert prices into class variables
+        self.client.alert_up = self.client.alert_down = [None, None]
+
         with open('price_alerts.json') as json_file:
             data = json.load(json_file)
 
-            self.client.prim_alert_up = data[self.client.pairs[0]]['up']
-            self.client.prim_alert_down = data[self.client.pairs[0]]['down']
-            self.client.sec_alert_up = data[self.client.pairs[1]]['up']
-            self.client.sec_alert_down = data[self.client.pairs[1]]['down']
-
+            self.client.alert_up[0] = data[self.client.pairs[0]]['up']
+            self.client.alert_down[0] = data[self.client.pairs[0]]['down']
+            self.client.alert_up[1] = data[self.client.pairs[1]]['up']
+            self.client.alert_down[1] = data[self.client.pairs[1]]['down']
 
         self.on_ready = self.client.event(self.on_ready)
 
-    def is_stale(self):
-        if not self.client.is_stale:
-            self.client.is_stale = True
-            self.client.stale_end_trigger = time.monotonic() + 60
-        elif self.client.is_stale:
-            if int(time.monotonic) > int(self.client.stale_end_trigger):
-                self.client.is_stale = False
-                pipe = subprocess.Popen("sudo service crypto-price-bots restart", shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    async def main_loop(self):
+        alert_channel = self.client.get_channel(696082479752413277)
+        alert_role = self.client.guild.get_role(798457594661437450)
 
+        # async with websockets.connect("wss://ftx.com/ws", ping_interval=15) as websocket:
+        async for websocket in websockets.connect("wss://ftx.com/ws", ping_interval=15):
+            try:
+                await websocket.send(f'{{"op": "subscribe", "channel": "trades", "market": "{self.client.group[0]}"}}')
+                await websocket.send(f'{{"op": "subscribe", "channel": "trades", "market": "{self.client.group[1]}"}}')
 
-    @tasks.loop(seconds=loop_time*4)
-    async def check_if_price_stale(self):
-        guild = self.client.get_guild(696082479752413274)
-        bot_member = guild.get_member(self.client.user.id)
+                while True:
+                    data = json.loads(await websocket.recv())
 
-        nick_price = float(re.findall(r"\d+\.\d+", bot_member.nick)[0])
-        cur_price = get_price(self.client.group[0])
-        variability_threshold = cur_price * 0.01
-        # If lower threshold is larger than displayed price or higher threshold is smaller than displayed price, we have a slight problem
-        if cur_price - variability_threshold > nick_price or cur_price + variability_threshold < nick_price:
-            # Assume there might be volume spike and just mention it *could* be stale
-            await self.client.change_presence(status=discord.Status.idle)
-            self.is_stale()
+                    if data['type'] == "update":
+                        if data['market'] == self.client.group[0]:
+                            group_index = 0
+                        elif data['market'] == self.client.group[1]:
+                            group_index = 1
 
-        if cur_price - variability_threshold*2 > nick_price or cur_price + variability_threshold*2 < nick_price:
-            # Now we have a larger problem
-            await self.client.change_presence(status=discord.Status.dnd)
-            self.is_stale()
+                        self.client.last_ws_update[group_index] = int(time.time())
 
-        # Repeat checks if it is combined bot
-        if self.client.combined == True:
-            # Activity is not immediately set on launch, so check that bot has activity first
-            if len(bot_member.activities) != 0:
-                # Same as above code by vars changed to reflect secondary coin
-                status_price = float(re.findall(r"\d+\.\d+", bot_member.activities[0].name)[0])
-                cur_price = get_price(self.client.group[1])
-                variability_threshold = cur_price * 0.01
-                # If lower threshold is larger than displayed price or higher threshold is smaller than displayed price, we have a slight problem
-                if cur_price - variability_threshold > status_price or cur_price + variability_threshold < status_price:
-                    # Assume there might be volume spike and just mention it *could* be stale
-                    await self.client.change_presence(status=discord.Status.idle)
-                    self.is_stale()
+                        self.client.usd_price[group_index] = float(data['data'][0]['price'])
 
-                if cur_price - variability_threshold*2 > status_price or cur_price + variability_threshold*2 < status_price:
-                    # Now we have a larger problem
-                    await self.client.change_presence(status=discord.Status.dnd)
-                    self.is_stale()
+                        # Check Alerts (Since every iteration loop only gets new data for one asset, we only need to check alert on one asset)
+                        if self.client.alert_up[group_index]:
+                            if self.client.usd_price[group_index] > self.client.alert_up[group_index]:
+                                await alert_channel.send(f"\U0001f4c8 {alert_role.mention} {self.client.user.mention} is above {self.client.alert_up[group_index]}.")
+                                alert_handler.clear_alert(self, 0, 'up')
+                        if self.client.alert_down[group_index]:
+                            if self.client.usd_price[group_index] < self.client.alert_down[group_index]:
+                                await alert_channel.send(f"\U0001f4c9 {alert_role.mention} {self.client.user.mention} is below {self.client.alert_down[group_index]}.")
+                                alert_handler.clear_alert(self, 0, 'down')
 
-    @tasks.loop(seconds=loop_time)
-    async def update_price(self):
-        guild = self.client.get_guild(696082479752413274)
+                        # Get currently displayed prices from Discord API
+                        bot_display_price = [None, None]
 
-        usd_price_1 = get_price(self.client.group[0])  
-        if self.client.combined == True:
-            usd_price_2 = get_price(self.client.group[1])
+                        bot_member = self.client.guild.get_member(self.client.user.id)
 
-        conversion_ratio = get_usd_cad_conversion()
-        cad_price_1 = usd_price_1 * conversion_ratio
+                        # Add 1 to API GET counter
+                        self.client.discord_api_gets += 1
 
-        # Check if any alerts triggered
-        # Check primary asset
-        if self.client.prim_alert_up:
-            alert_channel = self.client.get_channel(696082479752413277)
-            alert_role = guild.get_role(798457594661437450)
-            if usd_price_1 > self.client.prim_alert_up:
-                await alert_channel.send(f"\U0001f4c8 {alert_role.mention} {self.client.user.mention} is above {self.client.prim_alert_up}.")
-                clear_alert(self, 0, 'up')
-        if self.client.prim_alert_down:
-            alert_channel = self.client.get_channel(696082479752413277)
-            alert_role = guild.get_role(798457594661437450)
-            if usd_price_1 < self.client.prim_alert_down:
-                await alert_channel.send(f"\U0001f4c9 {alert_role.mention} {self.client.user.mention} is below {self.client.prim_alert_down}.")
-                clear_alert(self, 0, 'down')
+                        bot_display_price[0] = float(re.findall(r"\d+\.\d+", bot_member.nick)[0])
 
-        # Check secondary asset
-        if self.client.combined == True:
-            if self.client.sec_alert_up:
-                alert_channel = self.client.get_channel(696082479752413277)
-                alert_role = guild.get_role(798457594661437450)
-                if usd_price_2 > self.client.sec_alert_up:
-                    await alert_channel.send(f"\U0001f4c8 {alert_role.mention} {self.client.user.mention} is above {self.client.sec_alert_up}.")
-                    clear_alert(self, 1, 'up')
-            if self.client.sec_alert_down:
-                alert_channel = self.client.get_channel(696082479752413277)
-                alert_role = guild.get_role(798457594661437450)
-                if usd_price_2 < self.client.sec_alert_down:
-                    await alert_channel.send(f"\U0001f4c9 {alert_role.mention} {self.client.user.mention} is below {self.client.sec_alert_down}.")
-                    clear_alert(self, 1, 'down')
+                        # Bot activity will be None during cold start, try to parse existing activity, otherwise manually set display price to near $0 to force update
+                        if bot_member.activity is not None:
+                            try:
+                                bot_display_price[1] = float(re.findall(r"\d+\.\d+", bot_member.activity.name)[0])
+                            except IndexError:
+                                bot_display_price[1] = float(10**-10)
+                        else:
+                            bot_display_price[1] = float(10**-10)
+
+                        # Calculate delta factor between actual price and displayed price
+                        delta_factor = abs(1-(self.client.usd_price[group_index] / bot_display_price[group_index]))
+
+                        if delta_factor > variability:
+                            await self.update_display(group_index)
+                            self.client.discord_api_posts[group_index] += 1
+
+                    elif data['type'] == "subscribed" or data['type'] == "unsubscribed":
+                        pass
+                    elif data['type'] == "info" and data['code'] == 20001:
+                        raise websockets.ConnectionClosed
+                    else:
+                        await alert_channel.send(f"could not parse `{data}`")
+                        print(data)
+            except websockets.exceptions.ConnectionClosedError:
+                continue
+            except websockets.ConnectionClosed:
+                continue
+
+    @tasks.loop(minutes=30)
+    async def update_cad_usd_conversion(self):
+        if self.client.paused:
+            return
+
+        self.client.cad_usd_conversion_ratio = get_usd_cad_conversion()
+
+    @tasks.loop(seconds=10)
+    async def check_last_ws_msg(self):
+        if self.client.paused:
+            return
+
+        disconnected = [False, False]
+
+        if self.client.last_ws_update[0] is not None and (self.client.last_ws_update[0] + 30) < int(time.time()):
+            disconnected[0] = True
+        if self.client.last_ws_update[1] is not None and (self.client.last_ws_update[1] + 30) < int(time.time()):
+            disconnected[1] = True
+        
+        if disconnected[0] == True and disconnected[1] == True:
+            await self.client.change_presence(activity=discord.Game(f"[!] Both WS Disconnected."), status=discord.Status.dnd)
+        elif disconnected[0] == True:
+            await self.client.change_presence(activity=discord.Game(f"[!] Primary WS Disconnected."), status=discord.Status.dnd)
+        elif disconnected[1] == True:
+            await self.client.change_presence(activity=discord.Game(f"[!] Secondary WS Disconnected."), status=discord.Status.dnd)
+
+    async def update_display(self, group_index):
+        if self.client.paused:
+            return
 
         # Format for bot users
         #
@@ -218,21 +213,20 @@ class PriceBot:
         # 1st Coin TICKER - $price.xx
         # 2nd Coin TICKER - $price.xx
 
-
-        await guild.me.edit(nick=f"{self.client.pairs[0]} - ${round(usd_price_1, 4)}")
-
-        if self.client.combined == True:
-            await self.client.change_presence(activity=discord.Game(f"{self.client.pairs[1]} - ${round(usd_price_2, 4)}"))
-        else:
-            await self.client.change_presence(activity=discord.Game(f"CA${round(cad_price_1, 4)}"))
+        if (group_index == 0):
+            await self.client.guild.me.edit(nick=f"{self.client.pairs[0]} - ${round(self.client.usd_price[0], 4)}")
+        elif (group_index == 1):
+            await self.client.change_presence(activity=discord.Game(f"{self.client.pairs[1]} - ${round(self.client.usd_price[1], 4)}"))
 
     async def on_ready(self):
-        self.update_price.start()
-        self.check_if_price_stale.start()
-        if self.client.combined == True:
-            print(f"{self.client.pairs[0]}/{self.client.pairs[1]} loaded")
-        else:
-            print(f"{self.client.pairs[0]} loaded")
+        self.client.guild = self.client.get_guild(696082479752413274)
+
+        self.update_cad_usd_conversion.start()
+        self.check_last_ws_msg.start()
+
+        print(f"{self.client.pairs[0]}/{self.client.pairs[1]} loaded.")
+
+        await self.main_loop()
 
     def start(self):
         return self.client.start(self.token)

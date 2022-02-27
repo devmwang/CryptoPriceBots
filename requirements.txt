@@ -62,6 +62,6 @@ uniswap-python==0.5.3
 urllib3==1.26.7
 varint==1.0.2
 web3==5.25.0
-websockets==9.1
+websockets==10.2
 wsproto==1.0.0
 yarl==1.7.2
