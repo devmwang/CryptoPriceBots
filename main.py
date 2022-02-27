@@ -129,11 +129,11 @@ class PriceBot:
                         if self.client.alert_up[group_index]:
                             if self.client.usd_price[group_index] > self.client.alert_up[group_index]:
                                 await alert_channel.send(f"\U0001f4c8 {alert_role.mention} {self.client.pairs[group_index]} is above {self.client.alert_up[group_index]}.")
-                                alert_handler.clear_alert(self, [group_index], 'up')
+                                alert_handler.clear_alert(self, group_index, 'up')
                         if self.client.alert_down[group_index]:
                             if self.client.usd_price[group_index] < self.client.alert_down[group_index]:
                                 await alert_channel.send(f"\U0001f4c9 {alert_role.mention} {self.client.pairs[group_index]} is below {self.client.alert_down[group_index]}.")
-                                alert_handler.clear_alert(self, [group_index], 'down')
+                                alert_handler.clear_alert(self, group_index, 'down')
 
                         # Get currently displayed prices from Discord API
                         bot_display_price = [None, None]
