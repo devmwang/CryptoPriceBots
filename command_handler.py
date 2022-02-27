@@ -111,7 +111,7 @@ class CommandHandler(commands.Cog):
                         alert_handler.clear_all_alerts(self)
 
             except asyncio.TimeoutError:
-                await msg.edit(components=None)
+                await msg.edit(components=[])
 
         # Set price alerts
         # * Intelligent command setter
