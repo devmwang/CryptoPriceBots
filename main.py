@@ -90,7 +90,8 @@ class PriceBot:
             self.client.pairs.append(re.sub('-PERP', '', trading_pair))
 
         # Init persistent alert prices into class variables
-        self.client.alert_up = self.client.alert_down = [None, None]
+        self.client.alert_up = [None, None]
+        self.client.alert_down = [None, None]
 
         with open('price_alerts.json') as json_file:
             data = json.load(json_file)
