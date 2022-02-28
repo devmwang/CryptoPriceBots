@@ -173,6 +173,8 @@ class PriceBot:
                 continue
             except websockets.ConnectionClosed:
                 continue
+            except ConnectionResetError:
+                continue
 
     @tasks.loop(minutes=30)
     async def update_cad_usd_conversion(self):
