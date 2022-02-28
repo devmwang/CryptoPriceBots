@@ -184,9 +184,14 @@ class CommandHandler(commands.Cog):
 
     @commands.command(name="requests")
     async def requests(self, context):
-        await context.send(f"""Price Bot: {self.client.discord_api_gets} {parse_single_multi_val(self.client.discord_api_gets, "GET")} to Discord API since <t:{self.client.start_time}>  (<t:{self.client.last_ws_update[1]}:R>).
-{self.client.pairs[0]}: {self.client.discord_api_posts[0]} {parse_single_multi_val(self.client.discord_api_posts[0], "POST")} to Discord API since <t:{self.client.start_time}> (<t:{self.client.last_ws_update[1]}:R>).
-{self.client.pairs[1]}: {self.client.discord_api_posts[1]} {parse_single_multi_val(self.client.discord_api_posts[1], "POST")} to Discord API since <t:{self.client.start_time}> (<t:{self.client.last_ws_update[1]}:R>).""")
+        await context.send(f"""Price Bot: {self.client.discord_api_gets} {parse_single_multi_val(self.client.discord_api_gets, "GET")} to Discord API since <t:{self.client.start_time}>  (<t:{self.client.start_time}:R>).
+{self.client.pairs[0]}: {self.client.discord_api_posts[0]} {parse_single_multi_val(self.client.discord_api_posts[0], "POST")} to Discord API since <t:{self.client.start_time}> (<t:{self.client.start_time}:R>).
+{self.client.pairs[1]}: {self.client.discord_api_posts[1]} {parse_single_multi_val(self.client.discord_api_posts[1], "POST")} to Discord API since <t:{self.client.start_time}> (<t:{self.client.start_time}:R>).""")
+
+    @commands.command(name="var")
+    async def var(self, context):
+        await context.send(f"""{self.client.pairs[0]} Variability: {main.variability * 100}% (approx. ${round(self.client.usd_price[0] * main.variability, 4)})
+{self.client.pairs[1]} Variability: {main.variability * 100}% (approx. ${round(self.client.usd_price[1] * main.variability, 4)})""")
 
     @commands.command(name="ping")
     async def ping(self, context):
