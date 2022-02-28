@@ -190,8 +190,8 @@ class CommandHandler(commands.Cog):
 
     @commands.command(name="var")
     async def var(self, context):
-        await context.send(f"""{self.client.pairs[0]} Variability: {main.variability * 100}% (approx. ${round(self.client.usd_price[0] * main.variability, 4)})
-{self.client.pairs[1]} Variability: {main.variability * 100}% (approx. ${round(self.client.usd_price[1] * main.variability, 4)})""")
+        await context.send(f"""{self.client.pairs[0]} Variability: {self.client.variability_threshold[0] * 100}% (approx. ${round(self.client.usd_price[0] * self.client.variability_threshold[0], 4)})
+{self.client.pairs[1]} Variability: {self.client.variability_threshold[1] * 100}% (approx. ${round(self.client.usd_price[1] * self.client.variability_threshold[1], 4)})""")
 
     @commands.command(name="ping")
     async def ping(self, context):
@@ -222,6 +222,14 @@ WS API Heartbeat: `{int(self.client.latency * 1000)}ms`""")
                 await voice_client.disconnect()
 
     @commands.command(name="force")
+    async def force(self, context):
+        pass
+
+    @commands.command(name="a")
+    async def force(self, context):
+        pass
+
+    @commands.command(name="b")
     async def force(self, context):
         pass
 

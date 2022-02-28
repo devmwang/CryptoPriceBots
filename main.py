@@ -14,36 +14,21 @@ import alert_handler
 
 
 groups = {
-    # 'ODM5NjY2NjU4NjQ1OTAxMzIy.YJM-gw.JryOhVS2hdlX3gu5_htRgusDUFk': [
-    #     'BTC-PERP',
-    # ],
-    # 'ODM5NjY3MDg4OTQ3ODA2Mjc4.YJM-6g._W4Z89u1-PE9F_jGs8nHeLPil8E': [
-    #     'ETH-PERP',
-    # ],
-    # 'ODYwMDQxMDk4NTU4MDQ2MjA5.YN1dsA.nSk77b0x0s6gP4IsSwvVnPmRZks': [
-    #     'SOL-PERP',
-    # ],
-    # 'ODYyODAyMjY3MTY5NzUxMDQ4.YOdpOg.eauZzdh8U51H3umSOTOWh2fe9BU': [
-    #     'FTT-PERP',
-    # ],
-    # 'ODk1NzAyMTAyOTM5MTQ0Mjc0.YV8Zlg.Wj7CH-HrcJxxJXNDpDc_r6UTsVo': [
-    #     'MATIC-PERP',
-    # ],
     'OTE1Nzg0OTI4MTE1OTQ5NTY5.YagpLQ.swfkjBpwoSp9JpIknVD134xld_U': [
-        'MATIC-PERP',
-        'LRC-PERP',
+        'MATIC',
+        'LRC',
     ],
     'OTM4ODQ1MjE5ODIxMDkyOTE3.YfwNvw.6HcRPj1_YbZBOd93AxSRaBVVCA0': [
-        'LUNA-PERP',
-        'DOT-PERP'
+        'LUNA',
+        'DOT'
     ],
     'OTA4MjE3MDk2NTc0NDY4MTM2.YYyhFQ.eMtJCaZesp94kX_ZbBL1XZWrq6k': [
-        'UNI-PERP',
-        'AAVE-PERP',
+        'UNI',
+        'AAVE',
     ],
     'ODk4MDEyMDE0OTg5OTM4NzQ4.YWeA3A.o3Lo7BC1vAwvL-lp1vAUr-xsdkA': [
-        'LINK-PERP',
-        'LTC-PERP',
+        'LINK',
+        'LTC',
     ],
 }
 
@@ -52,8 +37,12 @@ intents = discord.Intents.default()
 intents.members = True
 delete_cooldown = 3
 loop_time = 12
-variability = 0.0015
 
+
+def get_rest_price(ticker):
+    response = requests.get(f"https://ftx.com/api/markets/{ticker}-PERP")
+    data = json.loads(response.content)
+    return float(data['result']['last'])
 
 def get_usd_cad_conversion():
     try:
@@ -71,23 +60,19 @@ class PriceBot:
         
         self.token = bot_token
 
-        self.client.paused = False
-
         self.client.last_ws_update = [None, None]
         self.client.discord_api_gets = 0
         self.client.discord_api_posts = [0, 0]
         self.client.start_time = int(time.time())
 
-        self.client.usd_price = [None, None]
-
         self.client.is_stale = False
         self.client.stale_end_trigger = None
 
-        self.client.group = group
-        self.client.pairs = []
+        # Save bot assets to client var
+        self.client.pairs = group
 
-        for trading_pair in self.client.group:
-            self.client.pairs.append(re.sub('-PERP', '', trading_pair))
+        # Initialize local USD prices from FTX REST API
+        self.client.usd_price = [get_rest_price(self.client.pairs[0]), get_rest_price(self.client.pairs[1])]
 
         # Init persistent alert prices into class variables
         self.client.alert_up = [None, None]
@@ -100,6 +85,15 @@ class PriceBot:
             self.client.alert_down[0] = data[self.client.pairs[0]]['down']
             self.client.alert_up[1] = data[self.client.pairs[1]]['up']
             self.client.alert_down[1] = data[self.client.pairs[1]]['down']
+        
+        # Init variability thresholds into class variables
+        self.client.variability_threshold = [None, None]
+
+        with open('settings.json') as json_file:
+            data = json.load(json_file)
+
+            self.client.variability_threshold[0] = data["variability-threshold"][self.client.pairs[0]]
+            self.client.variability_threshold[1] = data["variability-threshold"][self.client.pairs[1]]
 
         self.on_ready = self.client.event(self.on_ready)
 
@@ -110,16 +104,16 @@ class PriceBot:
         # async with websockets.connect("wss://ftx.com/ws", ping_interval=15) as websocket:
         async for websocket in websockets.connect("wss://ftx.com/ws", ping_interval=15):
             try:
-                await websocket.send(f'{{"op": "subscribe", "channel": "trades", "market": "{self.client.group[0]}"}}')
-                await websocket.send(f'{{"op": "subscribe", "channel": "trades", "market": "{self.client.group[1]}"}}')
+                await websocket.send(f'{{"op": "subscribe", "channel": "trades", "market": "{self.client.pairs[0]}-PERP"}}')
+                await websocket.send(f'{{"op": "subscribe", "channel": "trades", "market": "{self.client.pairs[1]}-PERP"}}')
 
                 while True:
                     data = json.loads(await websocket.recv())
 
                     if data['type'] == "update":
-                        if data['market'] == self.client.group[0]:
+                        if data['market'] == f"{self.client.pairs[0]}-PERP":
                             group_index = 0
-                        elif data['market'] == self.client.group[1]:
+                        elif data['market'] == f"{self.client.pairs[1]}-PERP":
                             group_index = 1
 
                         self.client.last_ws_update[group_index] = int(time.time())
@@ -158,7 +152,7 @@ class PriceBot:
                         # Calculate delta factor between actual price and displayed price
                         delta_factor = abs(1-(self.client.usd_price[group_index] / bot_display_price[group_index]))
 
-                        if delta_factor > variability:
+                        if delta_factor > self.client.variability_threshold[group_index]:
                             await self.update_display(group_index)
                             self.client.discord_api_posts[group_index] += 1
 
@@ -176,18 +170,12 @@ class PriceBot:
             except ConnectionResetError:
                 continue
 
-    @tasks.loop(minutes=30)
+    @tasks.loop(hours=1)
     async def update_cad_usd_conversion(self):
-        if self.client.paused:
-            return
-
         self.client.cad_usd_conversion_ratio = get_usd_cad_conversion()
 
     @tasks.loop(seconds=10)
     async def check_last_ws_msg(self):
-        if self.client.paused:
-            return
-
         disconnected = [False, False]
 
         if self.client.last_ws_update[0] is not None and (self.client.last_ws_update[0] + 30) < int(time.time()):
@@ -203,18 +191,10 @@ class PriceBot:
             await self.client.change_presence(activity=discord.Game(f"[!] Secondary WS Disconnected."), status=discord.Status.dnd)
 
     async def update_display(self, group_index):
-        if self.client.paused:
-            return
-
-        # Format for bot users
+        # Format for dual asset price bots
         #
-        # TICKER - $price.xx
-        # Playing CA$price.xx
-        #
-        # or
-        #
-        # 1st Coin TICKER - $price.xx
-        # 2nd Coin TICKER - $price.xx
+        # Primary Asset TICKER - $price.xx
+        # Secondary Asset TICKER - $price.xx
 
         if (group_index == 0):
             await self.client.guild.me.edit(nick=f"{self.client.pairs[0]} - ${round(self.client.usd_price[0], 4)}")
