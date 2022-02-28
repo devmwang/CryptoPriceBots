@@ -71,7 +71,8 @@ class CommandHandler(commands.Cog):
             # Determine ticker through getting the nickname of the bot, usually in this format:
             # BTC - $30495.40
             name = m.guild.get_member(self.client.user.id).nick.split()
-            msg = await m.reply(f"{main.get_price(f'{name[0]}-PERP')} USD", components=[action_row])
+            msg = await m.reply(f"""{self.client.pairs[0]}: {self.client.usd_price[0]} USD
+{self.client.pairs[1]}: {self.client.usd_price[1]} USD""", components=[action_row])
             try:
                 while True:
                     button_ctx: ComponentContext = await wait_for_component(self.client, components=action_row, timeout=10)
