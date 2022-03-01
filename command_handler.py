@@ -14,14 +14,7 @@ from discord_slash import ComponentContext
 import alert_handler
 
 
-def get_usd_cad_conversion():
-    try:
-        return float(json.loads(requests.get("https://api.coinbase.com/v2/exchange-rates", params={"currency": "USD"}).content)['data']['rates']['CAD'])
-    except json.decoder.JSONDecodeError:
-        return 1 / float(json.loads(requests.get('https://ftx.com/api/markets/CAD/USD').content)['result']['last'])
-
-
-def parse_price(price_input, cur_price):
+def parse_price(price_input, cur_price, cad_usd_conversion_ratio):
     price_input = price_input.lower()
     try:
         amt = float(re.findall(r"\d+\.?\d*", price_input)[0])
@@ -32,8 +25,7 @@ def parse_price(price_input, cur_price):
         if "-" in price_input:
             amt -= cur_price
         if "ca" in price_input:
-            conversion_ratio = get_usd_cad_conversion()
-            amt /= conversion_ratio
+            amt /= cad_usd_conversion_ratio
 
         return round(amt, 2)
 
@@ -132,8 +124,8 @@ class CommandHandler(commands.Cog):
             for i in range (1, len(m_list)):
                 alertstring += m_list[i]
 
-            prim_alert_price = parse_price(alertstring, prim_curr_price)
-            sec_alert_price = parse_price(alertstring, sec_curr_price)
+            prim_alert_price = parse_price(alertstring, prim_curr_price, self.client.cad_usd_conversion_ratio)
+            sec_alert_price = parse_price(alertstring, sec_curr_price, self.client.cad_usd_conversion_ratio)
 
             if (prim_alert_price is None) and (sec_alert_price is None):
                 return

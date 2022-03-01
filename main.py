@@ -213,13 +213,7 @@ class PriceBot:
 
     def start(self):
         return self.client.start(self.token)
-
-
-def get_price(trading_pair):
-    response = requests.get(f"https://ftx.com/api/markets/{trading_pair}")
-    data = json.loads(response.content)
-    return float(data['result']['last'])
-
+        
 
 loop = asyncio.get_event_loop()
 
