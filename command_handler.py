@@ -227,7 +227,7 @@ WS API Heartbeat: `{int(self.client.latency * 1000)}ms`""")
 
     @commands.command(name="a")
     async def force(self, context):
-        pass
+        await context.send("You have issues...")
 
     @commands.command(name="b")
     async def force(self, context):
