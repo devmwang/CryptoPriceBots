@@ -2,7 +2,7 @@
     "variability-threshold": {
         "MATIC": 0.001,
         "LRC": 0.0015,
-        "LUNA": 0.001,
+        "FTT": 0.001,
         "DOT": 0.0015,
         "UNI": 0.0015,
         "AAVE": 0.002,

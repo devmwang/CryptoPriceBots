@@ -19,7 +19,7 @@ groups = {
         'LRC',
     ],
     'OTM4ODQ1MjE5ODIxMDkyOTE3.YfwNvw.6HcRPj1_YbZBOd93AxSRaBVVCA0': [
-        'LUNA',
+        'FTT',
         'DOT'
     ],
     'OTA4MjE3MDk2NTc0NDY4MTM2.YYyhFQ.eMtJCaZesp94kX_ZbBL1XZWrq6k': [
