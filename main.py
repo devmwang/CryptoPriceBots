@@ -65,6 +65,8 @@ class PriceBot:
         self.client.discord_api_posts = [0, 0]
         self.client.start_time = int(time.time())
 
+        self.client.dc_threshold_time = None
+
         self.client.is_stale = False
         self.client.stale_end_trigger = None
 
@@ -163,11 +165,8 @@ class PriceBot:
                     else:
                         await alert_channel.send(f"could not parse `{data}`")
                         print(data)
-            except websockets.exceptions.ConnectionClosedError:
-                continue
-            except websockets.ConnectionClosed:
-                continue
-            except ConnectionResetError:
+            except Exception:
+                # Hee Hee Hee Haa
                 continue
 
     @tasks.loop(hours=1)
@@ -183,6 +182,27 @@ class PriceBot:
         if self.client.last_ws_update[1] is not None and (self.client.last_ws_update[1] + 30) < int(time.time()):
             disconnected[1] = True
         
+        # Prolonged DC Self-Restart Logic
+        if disconnected[0] == True or disconnected[1] == True:
+            if self.client.dc_threshold_time != None:
+                if self.client.dc_threshold_time > int(time.time()):
+                    alert_channel = self.client.get_channel(696082479752413277)
+                    await alert_channel.send(f"DEBUG: CurrTime <t:{int(time.time())}:T>")
+
+                    await alert_channel.send(f"Price bot restart triggered by {self.client.pairs[0]}/{self.client.pairs[1]} bot.")
+                    await alert_channel.send(f"Websocket DC'ed? Prim: {disconnected[0]} | Sec: {disconnected[1]}")
+
+                    if disconnected[0] == True:
+                        await alert_channel.send(f"Prim WS: Last msg received at <t:{self.client.last_ws_update[0]}:T> (<t:{self.client.last_ws_update[0]}:R>)")
+                    if disconnected[1] == True:
+                        await alert_channel.send(f"Sec WS: Last msg received at <t:{self.client.last_ws_update[1]}:T> (<t:{self.client.last_ws_update[1]}:R>)")
+
+                    subprocess.Popen("sudo systemctl restart crypto-price-bots", shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            else:
+                self.client.dc_threshold_time = int(time.time()) + 120
+            
+
+        # Set bot activity in Discord
         if disconnected[0] == True and disconnected[1] == True:
             await self.client.change_presence(activity=discord.Game(f"[!] Both WS Disconnected."), status=discord.Status.dnd)
         elif disconnected[0] == True:
