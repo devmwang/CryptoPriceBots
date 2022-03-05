@@ -140,7 +140,11 @@ class PriceBot:
                         # Add 1 to API GET counter
                         self.client.discord_api_gets += 1
 
-                        bot_display_price[0] = float(re.findall(r"\d+\.\d+", bot_member.nick)[0])
+                        # Bot nickname can be formatted incorrectly for regex, try to parse, otherwise manually set display price to near $0 to force update
+                        try:
+                            bot_display_price[0] = float(re.findall(r"\d+\.\d+", bot_member.nick)[0])
+                        except Exception:
+                            bot_display_price[0] = float(10**-10)
 
                         # Bot activity will be None during cold start, try to parse existing activity, otherwise manually set display price to near $0 to force update
                         if bot_member.activity is not None:
@@ -183,30 +187,57 @@ class PriceBot:
             disconnected[1] = True
         
         # Prolonged DC Self-Restart Logic
+        # If either websocket is disconnected, run checker logic
         if disconnected[0] == True or disconnected[1] == True:
+            # If there is already a trigger time set, check if current time is over threshold time
             if self.client.dc_threshold_time != None:
-                if self.client.dc_threshold_time > int(time.time()):
-                    alert_channel = self.client.get_channel(696082479752413277)
-                    await alert_channel.send(f"DEBUG: CurrTime <t:{int(time.time())}:T>")
+                curr_time = int(time.time())
 
-                    await alert_channel.send(f"Price bot restart triggered by {self.client.pairs[0]}/{self.client.pairs[1]} bot.")
-                    await alert_channel.send(f"Websocket DC'ed? Prim: {disconnected[0]} | Sec: {disconnected[1]}")
+                # If current time over threshold time, trigger restart
+                if curr_time > self.client.dc_threshold_time:
+                    alert_channel = self.client.get_channel(712721050223247360)
+                    await alert_channel.send(f"[DEBUG/INFO] Current Time: <t:{curr_time}:T>")
+                    await alert_channel.send(f"[DEBUG/INFO] Threshold Time: <t:{self.client.dc_threshold_time}:T>")
+
+                    await alert_channel.send(f"[SERVICE RESTART TRIGGERED] Price bot restart triggered by {self.client.pairs[0]}/{self.client.pairs[1]} bot.")
+                    await alert_channel.send(f"[DEBUG/INFO] Websocket DC'ed? Prim: {disconnected[0]} | Sec: {disconnected[1]}")
 
                     if disconnected[0] == True:
-                        await alert_channel.send(f"Prim WS: Last msg received at <t:{self.client.last_ws_update[0]}:T> (<t:{self.client.last_ws_update[0]}:R>)")
+                        await alert_channel.send(f"[DEBUG/INFO] Prim WS: Last msg received at <t:{self.client.last_ws_update[0]}:T> (<t:{self.client.last_ws_update[0]}:R>)")
                     if disconnected[1] == True:
-                        await alert_channel.send(f"Sec WS: Last msg received at <t:{self.client.last_ws_update[1]}:T> (<t:{self.client.last_ws_update[1]}:R>)")
+                        await alert_channel.send(f"[DEBUG/INFO] Sec WS: Last msg received at <t:{self.client.last_ws_update[1]}:T> (<t:{self.client.last_ws_update[1]}:R>)")
 
                     subprocess.Popen("sudo systemctl restart crypto-price-bots", shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            # If there is no trigger time set, set a trigger time 120 seconds later
             else:
-                self.client.dc_threshold_time = int(time.time()) + 120
-            
+                curr_time = int(time.time())
+                alert_channel = self.client.get_channel(712721050223247360)
+                
+                self.client.dc_threshold_time = (curr_time + 120)
+                
+                await alert_channel.send(f"[DEBUG/INFO] Current Time: <t:{curr_time}:T>")
+                await alert_channel.send(f"[SET] Set threshold for <t:{self.client.dc_threshold_time}:T>")
+        # If no websockets are disconnected, cancel threshold if it exists
+        else:
+            if self.client.dc_threshold_time != None:
+                # Cancel current threshold time
+                self.client.dc_threshold_time = None
+
+                alert_channel = self.client.get_channel(712721050223247360)            
+                await alert_channel.send(f"[CANCEL] Restart Countdown Cancelled")
 
         # Set bot activity in Discord
+        try:
+            bot_activity = self.client.guild.get_member(self.client.user.id).activity.name
+        except AttributeError:
+            bot_activity = ""
+
         if disconnected[0] == True and disconnected[1] == True:
+            await self.client.guild.me.edit(nick=f"[!] Both WS Disconnected.")
             await self.client.change_presence(activity=discord.Game(f"[!] Both WS Disconnected."), status=discord.Status.dnd)
         elif disconnected[0] == True:
-            await self.client.change_presence(activity=discord.Game(f"[!] Primary WS Disconnected."), status=discord.Status.dnd)
+            await self.client.guild.me.edit(nick=f"[!] Primary WS Disconnected.")
+            await self.client.change_presence(activity=bot_activity, status=discord.Status.dnd)
         elif disconnected[1] == True:
             await self.client.change_presence(activity=discord.Game(f"[!] Secondary WS Disconnected."), status=discord.Status.dnd)
 
