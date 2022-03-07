@@ -179,66 +179,46 @@ class PriceBot:
 
     @tasks.loop(seconds=10)
     async def check_last_ws_msg(self):
-        disconnected = [False, False]
+        self.client.disconnected = [False, False]
 
         if self.client.last_ws_update[0] is not None and (self.client.last_ws_update[0] + 30) < int(time.time()):
-            disconnected[0] = True
+            self.client.disconnected[0] = True
         if self.client.last_ws_update[1] is not None and (self.client.last_ws_update[1] + 30) < int(time.time()):
-            disconnected[1] = True
+            self.client.disconnected[1] = True
         
         # Prolonged DC Self-Restart Logic
         # If either websocket is disconnected, run checker logic
-        if disconnected[0] == True or disconnected[1] == True:
+        if self.client.disconnected[0] == True or self.client.disconnected[1] == True:
             # If there is already a trigger time set, check if current time is over threshold time
             if self.client.dc_threshold_time != None:
                 curr_time = int(time.time())
-
+                
                 # If current time over threshold time, trigger restart
                 if curr_time > self.client.dc_threshold_time:
-                    alert_channel = self.client.get_channel(712721050223247360)
-                    await alert_channel.send(f"[DEBUG/INFO] Current Time: <t:{curr_time}:T>")
-                    await alert_channel.send(f"[DEBUG/INFO] Threshold Time: <t:{self.client.dc_threshold_time}:T>")
-
-                    await alert_channel.send(f"[SERVICE RESTART TRIGGERED] Price bot restart triggered by {self.client.pairs[0]}/{self.client.pairs[1]} bot.")
-                    await alert_channel.send(f"[DEBUG/INFO] Websocket DC'ed? Prim: {disconnected[0]} | Sec: {disconnected[1]}")
-
-                    if disconnected[0] == True:
-                        await alert_channel.send(f"[DEBUG/INFO] Prim WS: Last msg received at <t:{self.client.last_ws_update[0]}:T> (<t:{self.client.last_ws_update[0]}:R>)")
-                    if disconnected[1] == True:
-                        await alert_channel.send(f"[DEBUG/INFO] Sec WS: Last msg received at <t:{self.client.last_ws_update[1]}:T> (<t:{self.client.last_ws_update[1]}:R>)")
+                    await self.client.get_channel(712721050223247360).send(f"**[SYSTEM ALERT] Price bot service restarted at <t:{curr_time}:T> (<t:{curr_time}:R>)**")
 
                     subprocess.Popen("sudo systemctl restart crypto-price-bots", shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-            # If there is no trigger time set, set a trigger time 120 seconds later
-            else:
-                curr_time = int(time.time())
-                alert_channel = self.client.get_channel(712721050223247360)
-                
-                self.client.dc_threshold_time = (curr_time + 120)
-                
-                await alert_channel.send(f"[DEBUG/INFO] Current Time: <t:{curr_time}:T>")
-                await alert_channel.send(f"[SET] Set threshold for <t:{self.client.dc_threshold_time}:T>")
+            # If there is no trigger time set, set a trigger time 60 seconds later
+            else:                
+                self.client.dc_threshold_time = (int(time.time()) + 60)
         # If no websockets are disconnected, cancel threshold if it exists
         else:
             if self.client.dc_threshold_time != None:
                 # Cancel current threshold time
                 self.client.dc_threshold_time = None
 
-                alert_channel = self.client.get_channel(712721050223247360)            
-                await alert_channel.send(f"[CANCEL] Restart Countdown Cancelled")
+                # Reset bot rich presence status in Discord
+                await self.client.change_presence(activity=discord.Game(f"{self.client.pairs[1]} - ${round(self.client.usd_price[1], 4)}"), status=discord.Status.online)
 
         # Set bot activity in Discord
-        try:
-            bot_activity = self.client.guild.get_member(self.client.user.id).activity.name
-        except AttributeError:
-            bot_activity = ""
-
-        if disconnected[0] == True and disconnected[1] == True:
+        if self.client.disconnected[0] == True and self.client.disconnected[1] == True:
             await self.client.guild.me.edit(nick=f"[!] Both WS Disconnected.")
             await self.client.change_presence(activity=discord.Game(f"[!] Both WS Disconnected."), status=discord.Status.dnd)
-        elif disconnected[0] == True:
+        elif self.client.disconnected[0] == True:
             await self.client.guild.me.edit(nick=f"[!] Primary WS Disconnected.")
-            await self.client.change_presence(activity=bot_activity, status=discord.Status.dnd)
-        elif disconnected[1] == True:
+            # Setting status requires specifying activity, or else will reset to None, so set activity to latest USD price
+            await self.client.change_presence(activity=discord.Game(f"{self.client.pairs[1]} - ${round(self.client.usd_price[1], 4)}"), status=discord.Status.dnd)
+        elif self.client.disconnected[1] == True:
             await self.client.change_presence(activity=discord.Game(f"[!] Secondary WS Disconnected."), status=discord.Status.dnd)
 
     async def update_display(self, group_index):
@@ -250,7 +230,11 @@ class PriceBot:
         if (group_index == 0):
             await self.client.guild.me.edit(nick=f"{self.client.pairs[0]} - ${round(self.client.usd_price[0], 4)}")
         elif (group_index == 1):
-            await self.client.change_presence(activity=discord.Game(f"{self.client.pairs[1]} - ${round(self.client.usd_price[1], 4)}"))
+            # Set status based on current disconnected status
+            if self.client.disconnected[0] == True or self.client.disconnected[1] == True:
+                await self.client.change_presence(activity=discord.Game(f"{self.client.pairs[1]} - ${round(self.client.usd_price[1], 4)}"), status=discord.Status.dnd)
+            else:
+                await self.client.change_presence(activity=discord.Game(f"{self.client.pairs[1]} - ${round(self.client.usd_price[1], 4)}"), status=discord.Status.online)
 
     async def on_ready(self):
         self.client.guild = self.client.get_guild(696082479752413274)
