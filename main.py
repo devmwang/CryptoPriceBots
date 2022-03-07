@@ -192,10 +192,10 @@ class PriceBot:
             # If there is already a trigger time set, check if current time is over threshold time
             if self.client.dc_threshold_time != None:
                 curr_time = int(time.time())
-                
+
                 # If current time over threshold time, trigger restart
                 if curr_time > self.client.dc_threshold_time:
-                    await self.client.get_channel(712721050223247360).send(f"**[SYSTEM ALERT] Price bot service restarted at <t:{curr_time}:T> (<t:{curr_time}:R>)**")
+                    await self.client.get_channel(712721050223247360).send(f"[SYSTEM ALERT] Price bot service restarted at <t:{curr_time}:T> (<t:{curr_time}:R>)")
 
                     subprocess.Popen("sudo systemctl restart crypto-price-bots", shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             # If there is no trigger time set, set a trigger time 60 seconds later
