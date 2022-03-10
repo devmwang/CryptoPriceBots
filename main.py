@@ -67,8 +67,7 @@ class PriceBot:
 
         self.client.dc_threshold_time = None
 
-        self.client.is_stale = False
-        self.client.stale_end_trigger = None
+        self.client.sts_msg = None
 
         # Save bot assets to client var
         self.client.pairs = group
@@ -98,6 +97,7 @@ class PriceBot:
             self.client.variability_threshold[1] = data["variability-threshold"][self.client.pairs[1]]
 
         self.on_ready = self.client.event(self.on_ready)
+
 
     async def main_loop(self):
         alert_channel = self.client.get_channel(696082479752413277)
@@ -207,18 +207,31 @@ class PriceBot:
                 # Cancel current threshold time
                 self.client.dc_threshold_time = None
 
-                # Reset bot rich presence status in Discord
+                # Reset bot status and rich presence in Discord
+                await self.client.sts_msg.edit(content=f"""{self.client.pairs[0]} WS Status: :green_circle:
+{self.client.pairs[1]} WS Status: :green_circle:""")
+
                 await self.client.change_presence(activity=discord.Game(f"{self.client.pairs[1]} - ${round(self.client.usd_price[1], 4)}"), status=discord.Status.online)
 
-        # Set bot activity in Discord
+        # Update bot status message and set bot activity in Discord
         if self.client.disconnected[0] == True and self.client.disconnected[1] == True:
+            await self.client.sts_msg.edit(content=f"""{self.client.pairs[0]} WS Status: :red_circle:
+{self.client.pairs[1]} WS Status: :red_circle:""")
+
             await self.client.guild.me.edit(nick=f"[!] Both WS Disconnected.")
             await self.client.change_presence(activity=discord.Game(f"[!] Both WS Disconnected."), status=discord.Status.dnd)
         elif self.client.disconnected[0] == True:
-            await self.client.guild.me.edit(nick=f"[!] Primary WS Disconnected.")
+            await self.client.sts_msg.edit(content=f"""{self.client.pairs[0]} WS Status: :red_circle:
+{self.client.pairs[1]} WS Status: :green_circle:""")
+
+            await self.client.guild.me.edit(nick=f"[!] {self.client.pairs[0]} WS Disconnected.")
+
             # Setting status requires specifying activity, or else will reset to None, so set activity to latest USD price
             await self.client.change_presence(activity=discord.Game(f"{self.client.pairs[1]} - ${round(self.client.usd_price[1], 4)}"), status=discord.Status.dnd)
         elif self.client.disconnected[1] == True:
+            await self.client.sts_msg.edit(content=f"""Primary WS Status: :green_circle:
+{self.client.pairs[1]} WS Status: :red_circle:""")
+
             await self.client.change_presence(activity=discord.Game(f"[!] Secondary WS Disconnected."), status=discord.Status.dnd)
 
     async def update_display(self, group_index):
@@ -243,6 +256,22 @@ class PriceBot:
         self.check_last_ws_msg.start()
 
         print(f"{self.client.pairs[0]}/{self.client.pairs[1]} loaded.")
+
+        # Bot Status System
+        bot_sts_chnl = self.client.get_channel(951549833368461372)
+
+        # Clear Status Channel of Previous Statuses
+        messages = []
+
+        async for message in bot_sts_chnl.history():
+            if message.author == self.client.user:
+                messages.append(message)
+
+        await bot_sts_chnl.delete_messages(messages)
+
+        # Create Bot Status Message
+        self.client.sts_msg = await bot_sts_chnl.send(f"""{self.client.pairs[0]} WS Status: :green_circle:
+{self.client.pairs[1]} WS Status: :green_circle:""")
 
         await self.main_loop()
 
