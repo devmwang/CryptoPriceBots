@@ -183,11 +183,8 @@ class CommandHandler(commands.Cog):
 
     @commands.command(name="var")
     async def var(self, context):
-        msg = await context.send(f"""{self.client.pairs[0]} Variability: {self.client.variability_threshold[0] * 100}% (approx. ${round(self.client.usd_price[0] * self.client.variability_threshold[0], 4)})
+        await context.send(f"""{self.client.pairs[0]} Variability: {self.client.variability_threshold[0] * 100}% (approx. ${round(self.client.usd_price[0] * self.client.variability_threshold[0], 4)})
 {self.client.pairs[1]} Variability: {self.client.variability_threshold[1] * 100}% (approx. ${round(self.client.usd_price[1] * self.client.variability_threshold[1], 4)})""")
-
-        await asyncio.sleep(main.delete_cooldown)
-        await msg.delete()
 
     @commands.command(name="ping")
     async def ping(self, context):
