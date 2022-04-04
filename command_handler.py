@@ -171,21 +171,15 @@ class CommandHandler(commands.Cog):
 
     @commands.command(name="last")
     async def last(self, context):
-        msg = await context.send(f"""{self.client.pairs[0]}: Last websocket message received on <t:{self.client.last_ws_update[0]}:D> at <t:{self.client.last_ws_update[0]}:t> (<t:{self.client.last_ws_update[0]}:R>)
+        await context.send(f"""{self.client.pairs[0]}: Last websocket message received on <t:{self.client.last_ws_update[0]}:D> at <t:{self.client.last_ws_update[0]}:t> (<t:{self.client.last_ws_update[0]}:R>)
 {self.client.pairs[1]}: Last websocket message received on <t:{self.client.last_ws_update[1]}:D> at <t:{self.client.last_ws_update[1]}:t> (<t:{self.client.last_ws_update[1]}:R>)""")
-
-        await asyncio.sleep(main.delete_cooldown)
-        await msg.delete()
 
 
     @commands.command(name="requests")
     async def requests(self, context):
-        msg = await context.send(f"""Price Bot: {self.client.discord_api_gets} {parse_single_multi_val(self.client.discord_api_gets, "GET")} to Discord API since <t:{self.client.start_time}>  (<t:{self.client.start_time}:R>).
+        await context.send(f"""Price Bot: {self.client.discord_api_gets} {parse_single_multi_val(self.client.discord_api_gets, "GET")} to Discord API since <t:{self.client.start_time}>  (<t:{self.client.start_time}:R>).
 {self.client.pairs[0]}: {self.client.discord_api_posts[0]} {parse_single_multi_val(self.client.discord_api_posts[0], "POST")} to Discord API since <t:{self.client.start_time}> (<t:{self.client.start_time}:R>).
 {self.client.pairs[1]}: {self.client.discord_api_posts[1]} {parse_single_multi_val(self.client.discord_api_posts[1], "POST")} to Discord API since <t:{self.client.start_time}> (<t:{self.client.start_time}:R>).""")
-
-        await asyncio.sleep(main.delete_cooldown)
-        await msg.delete()
 
     @commands.command(name="var")
     async def var(self, context):
