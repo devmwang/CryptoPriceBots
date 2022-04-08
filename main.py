@@ -177,7 +177,7 @@ class PriceBot:
     async def update_cad_usd_conversion(self):
         self.client.cad_usd_conversion_ratio = get_usd_cad_conversion()
 
-    @tasks.loop(seconds=10)
+    @tasks.loop(seconds=30)
     async def check_last_ws_msg(self):
         self.client.disconnected = [False, False]
 
