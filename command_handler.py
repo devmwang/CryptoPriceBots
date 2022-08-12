@@ -198,34 +198,7 @@ WS API Heartbeat: `{int(self.client.latency * 1000)}ms`""")
         await asyncio.sleep(main.delete_cooldown)
         await messageping.delete()
 
-    @commands.command(name='h')
-    async def h(self, context):
-        if context.author.voice is None:
-            await context.add_reaction("\U0000274c")
-        else:
-            await context.message.add_reaction("\U00002705")
-            voice_client: discord.VoiceClient = discord.utils.get(self.client.voice_clients, guild=context.guild)
-            if voice_client is None:
-                await context.author.voice.channel.connect()
-                voice_client: discord.VoiceClient = discord.utils.get(self.client.voice_clients, guild=context.guild)
-            audio = discord.FFmpegPCMAudio('heeheeheehaa.mp3')
-            voice_client.play(audio)
-            try:
-                react = await self.client.wait_for('reaction', timeout=10)
-                if str(react.emoji) == '✅':
-                    raise asyncio.TimeoutError
-            except asyncio.TimeoutError:
-                await voice_client.disconnect()
-
     @commands.command(name="force")
-    async def force(self, context):
-        pass
-
-    @commands.command(name="a")
-    async def force(self, context):
-        await context.send("You have issues...")
-
-    @commands.command(name="b")
     async def force(self, context):
         pass
 
