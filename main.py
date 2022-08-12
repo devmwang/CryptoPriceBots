@@ -1,3 +1,5 @@
+import os
+from dotenv import load_dotenv
 import subprocess
 import discord
 import requests
@@ -13,20 +15,29 @@ from discord_slash import SlashCommand
 import alert_handler
 
 
+# Initialize Env Variables
+load_dotenv()
+
+# Get Bot Tokens from Env Vars
+MATIC_LRC_TOKEN = os.getenv('MATIC_LRC_TOKEN')
+FTT_DOT_TOKEN = os.getenv('FTT_DOT_TOKEN')
+UNI_AAVE_TOKEN = os.getenv('UNI_AAVE_TOKEN')
+LINK_LTC_TOKEN = os.getenv('LINK_LTC_TOKEN')
+
 groups = {
-    'OTE1Nzg0OTI4MTE1OTQ5NTY5.YagpLQ.swfkjBpwoSp9JpIknVD134xld_U': [
+    MATIC_LRC_TOKEN: [
         'MATIC',
         'LRC',
     ],
-    'OTM4ODQ1MjE5ODIxMDkyOTE3.YfwNvw.6HcRPj1_YbZBOd93AxSRaBVVCA0': [
+    FTT_DOT_TOKEN: [
         'FTT',
         'DOT'
     ],
-    'OTA4MjE3MDk2NTc0NDY4MTM2.YYyhFQ.eMtJCaZesp94kX_ZbBL1XZWrq6k': [
+    UNI_AAVE_TOKEN: [
         'UNI',
         'AAVE',
     ],
-    'ODk4MDEyMDE0OTg5OTM4NzQ4.YWeA3A.o3Lo7BC1vAwvL-lp1vAUr-xsdkA': [
+    LINK_LTC_TOKEN: [
         'LINK',
         'LTC',
     ],
