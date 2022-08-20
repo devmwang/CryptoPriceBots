@@ -48,27 +48,18 @@ class EmbedView(ui.View):
 
     @ui.button(label="Restart Bots", style=discord.ButtonStyle.red)
     async def restart_bots(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await msg.edit(view = None)
         await interaction.channel.send("Restarting all price bots.")
+        await self.stop()
+        await asyncio.sleep(main.delete_cooldown)
         try:
-            pipe = subprocess.Popen("sudo service crypto-price-bots restart", shell=True,
-                                    stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-            out, err = pipe.communicate()
-            response = out.decode()
-            error = err.decode()
-            combined = response + error
-            if combined == "":
-                msg = await interaction.channel.send("Price bots restarted.")
-                await asyncio.sleep(main.delete_cooldown)
-                await msg.delete()
-            else:
-                await interaction.channel.send(f"```{combined}```")
+            subprocess.Popen("sudo service crypto-price-bots restart", shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         except discord.errors.HTTPException as _e:
             await interaction.channel.send(str(_e))
 
 
     @ui.button(label="Clear Alerts", style=discord.ButtonStyle.blurple)
     async def clear_alerts(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await interaction.response.defer()
         await interaction.channel.send(f"Cleared all alerts.")
         self.client.alert_handler.clear_all_alerts()
 
@@ -119,21 +110,21 @@ class CommandHandler(commands.Cog):
             
             bot_member = m.guild.get_member(self.client.user.id)
   
+            # If alert price not valid: Ignore since message could be generic
+            # If alert price valid: Set alert
+            alert_string = ""
+            for i in range (1, len(m_list)):
+                alert_string += m_list[i]
+
             prim_curr_price = float(re.findall(r"\d+\.\d+", bot_member.nick)[0])
-            prim_alert_price = parse_price(alert_string, prim_curr_price, self.client.cad_usd_conversion_ratio)
+            prim_alert_price = parse_price(alert_string, prim_curr_price, self.client.usd_cad_conversion)
 
             if not self.client.dual:
-                self.client.alert_handler.set_alert(0, prim_curr_price, prim_alert_price)
+                await m.reply(self.client.alert_handler.set_alert(0, prim_curr_price, prim_alert_price))
 
             else:
                 sec_curr_price = float(re.findall(r"\d+\.\d+", bot_member.activities[0].name)[0])
-                sec_alert_price = parse_price(alert_string, sec_curr_price, self.client.cad_usd_conversion_ratio)
-
-                # If alert price not valid: Ignore since message could be generic
-                # If alert price valid: Set alert
-                alert_string = ""
-                for i in range (1, len(m_list)):
-                    alert_string += m_list[i]
+                sec_alert_price = parse_price(alert_string, sec_curr_price, self.client.usd_cad_conversion)
 
                 if (prim_alert_price is None) and (sec_alert_price is None):
                     return
