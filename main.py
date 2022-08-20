@@ -1,14 +1,13 @@
 import os
 from dotenv import load_dotenv
 from multiprocessing import Process
-import subprocess
 import discord
 import requests
 import json
 import re
-import asyncio
 import time
 import websockets
+
 from discord.ext import commands, tasks
 
 import alert_handler
@@ -19,10 +18,14 @@ load_dotenv()
 
 # Get Bot Tokens from Env Vars
 MATIC_TOKEN = os.getenv('MATIC_TOKEN')
+LRC_TOKEN = os.getenv('LRC_TOKEN')
 
 bots = {
     MATIC_TOKEN: [
         'MATIC',
+    ],
+    LRC_TOKEN: [
+        'LRC',
     ],
 }
 
@@ -46,9 +49,7 @@ def get_usd_cad_conversion():
 
 def CryptoPriceBot(bot_token, assets):
     # * Initialization
-    client = discord.Client(intents=intents,
-                            status=discord.Status.idle,
-                            activity=discord.Game(name="Initializing..."))
+    client = commands.Bot(command_prefix="p!", intents=intents)
 
     client.dual = True if len(assets) == 2 else False
 
@@ -59,10 +60,11 @@ def CryptoPriceBot(bot_token, assets):
 
     client.dc_threshold_time = None
     client.status_message = None
+    client.disconnected = [False, False]
 
     client.assets = assets
 
-    client.usd_price = [get_rest_price(client.assets[0]), get_rest_price(client.assets[1])] if client.dual else [get_rest_price(client.assets[0])]
+    client.name = f"{client.assets[0]}/{client.assets[1]}" if client.dual else client.assets[0]
 
     # * Set Price Alerts
     client.alert_up = [None, None]
@@ -186,32 +188,36 @@ def CryptoPriceBot(bot_token, assets):
         # Secondary Asset TICKER - $price.xx (USD)
 
         if (group_index == 0):
-            await client.guild.me.edit(nick=f"{client.pairs[0]} - ${round(client.usd_price[0], 4)}")
-        elif (group_index == 1):
-            if client.dual:
+            await client.guild.me.edit(nick=f"{client.assets[0]} - ${round(client.usd_price[0], 4)}")
+        
+            if not client.dual:
                 # Set status based on current disconnected status
-                if client.disconnected[0] == True or client.disconnected[1] == True:
-                    await client.change_presence(activity=discord.Game(f"{client.pairs[1]} - ${round(client.usd_price[1], 4)}"), status=discord.Status.dnd)
-                else:
-                    await client.change_presence(activity=discord.Game(f"{client.pairs[1]} - ${round(client.usd_price[1], 4)}"), status=discord.Status.online)
-            else:
-                # Set status based on current disconnected status
-                if client.disconnected[0] == True or client.disconnected[1] == True:
+                if client.disconnected[0]:
                     await client.change_presence(activity=discord.Game(f"CA${round((client.usd_price[0] * client.usd_cad_conversion), 4)}"), status=discord.Status.dnd)
                 else:
                     await client.change_presence(activity=discord.Game(f"CA${round((client.usd_price[0] * client.usd_cad_conversion), 4)}"), status=discord.Status.online)
 
+        elif (group_index == 1):
+            # Set status based on current disconnected status
+            if client.disconnected[0] or client.disconnected[1]:
+                await client.change_presence(activity=discord.Game(f"{client.assets[1]} - ${round(client.usd_price[1], 4)}"), status=discord.Status.dnd)
+            else:
+                await client.change_presence(activity=discord.Game(f"{client.assets[1]} - ${round(client.usd_price[1], 4)}"), status=discord.Status.online)
+
+
     # * On Ready
     @client.event
     async def on_ready():
+        # Load extensions
+        await client.load_extension('command_handler')
+
+        # Get Discord Server
         client.guild = client.get_guild(696082479752413274)
 
         update_cad_usd_conversion.start()
         # check_last_ws_msg.start()
 
-        console_message = (f"{client.assets[0]}/{client.assets[1]} loaded.") if client.dual else (f"{client.assets[0]} loaded.")
-
-        print(console_message)
+        print(f"{client.name} loaded.")
 
         # Bot Status System
         bot_status_channel = client.get_channel(951549833368461372)
@@ -232,6 +238,15 @@ def CryptoPriceBot(bot_token, assets):
         else:
             client.status_msg = await bot_status_channel.send(f"{client.assets[0]} WS Status: :green_circle:")
 
+        # Initialize price data from FTX REST API
+        client.usd_price = [get_rest_price(client.assets[0]), get_rest_price(client.assets[1])] if client.dual else [get_rest_price(client.assets[0])]
+
+        await update_display(0)
+
+        if client.dual:
+            await update_display(1)
+
+        # Run main loop
         await main_loop()
     
     # * Run Bot
