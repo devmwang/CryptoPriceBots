@@ -36,6 +36,12 @@ intents.message_content = True
 delete_cooldown = 3
 loop_time = 12
 
+guild_id = 696082479752413274
+alert_role_id = 798457594661437450
+alert_channel_id = 696082479752413277
+bot_status_channel_id = 951549833368461372
+system_log_channel_id = 712721050223247360
+
 
 def get_rest_price(ticker):
     response = requests.get(f"https://ftx.com/api/markets/{ticker}-PERP")
@@ -103,8 +109,8 @@ def CryptoPriceBot(bot_token, assets):
 
     # * Main Bot Loop
     async def main_loop():
-        alert_channel = client.get_channel(696082479752413277)
-        alert_role = client.guild.get_role(798457594661437450)
+        alert_channel = client.get_channel(alert_channel_id)
+        alert_role = client.guild.get_role(alert_role_id)
 
         # async with websockets.connect("wss://ftx.com/ws", ping_interval=15) as websocket:
         async for websocket in websockets.connect("wss://ftx.com/ws", ping_interval=15):
@@ -209,7 +215,7 @@ def CryptoPriceBot(bot_token, assets):
 
                 # If current time over threshold time, trigger restart
                 if curr_time > client.dc_threshold_time:
-                    await client.get_channel(712721050223247360).send(f"[PRICE BOT HEALTH SYS] Price bot service restart triggered at <t:{curr_time}:T> (<t:{curr_time}:R>)")
+                    await client.get_channel(system_log_channel_id).send(f"[PRICE BOT HEALTH SYS] Price bot service restart triggered at <t:{curr_time}:T> (<t:{curr_time}:R>)")
 
                     subprocess.Popen("sudo systemctl restart crypto-price-bots", shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             
@@ -268,12 +274,12 @@ def CryptoPriceBot(bot_token, assets):
         await client.load_extension('command_handler')
 
         # Get Discord Server
-        client.guild = client.get_guild(696082479752413274)
+        client.guild = client.get_guild(guild_id)
 
         print(f"{client.name} loaded.")
 
         # Bot Status System
-        bot_status_channel = client.get_channel(951549833368461372)
+        bot_status_channel = client.get_channel(bot_status_channel_id)
 
         # Clear Status Channel of Previous Statuses
         messages = []
