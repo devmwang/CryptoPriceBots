@@ -7,7 +7,6 @@ from discord import ui
 from discord.ext import commands
 
 import main
-import alert_handler
 
 
 def parse_price(price_input, cur_price, cad_usd_conversion_ratio):
@@ -46,6 +45,7 @@ class EmbedView(ui.View):
         super().__init__()
         self.client = client
 
+
     @ui.button(label="Restart Bots", style=discord.ButtonStyle.red)
     async def restart_bots(self, interaction: discord.Interaction, button: discord.ui.Button):
         await msg.edit(view = None)
@@ -66,10 +66,11 @@ class EmbedView(ui.View):
         except discord.errors.HTTPException as _e:
             await interaction.channel.send(str(_e))
 
+
     @ui.button(label="Clear Alerts", style=discord.ButtonStyle.blurple)
     async def clear_alerts(self, interaction: discord.Interaction, button: discord.ui.Button):
         await interaction.channel.send(f"Cleared all alerts.")
-        alert_handler.clear_all_alerts(self.client)
+        self.client.alert_handler.clear_all_alerts()
 
 
 class CommandHandler(commands.Cog):
@@ -117,39 +118,44 @@ class CommandHandler(commands.Cog):
             ticker = m_list[0]
             
             bot_member = m.guild.get_member(self.client.user.id)
-
+  
             prim_curr_price = float(re.findall(r"\d+\.\d+", bot_member.nick)[0])
-            sec_curr_price = float(re.findall(r"\d+\.\d+", bot_member.activities[0].name)[0])
-
-            # If alert price not valid: Ignore since message could be generic
-            # If alert price valid: Set alert
-            alert_string = ""
-            for i in range (1, len(m_list)):
-                alert_string += m_list[i]
-
             prim_alert_price = parse_price(alert_string, prim_curr_price, self.client.cad_usd_conversion_ratio)
-            sec_alert_price = parse_price(alert_string, sec_curr_price, self.client.cad_usd_conversion_ratio)
 
-            if (prim_alert_price is None) and (sec_alert_price is None):
-                return
+            if not self.client.dual:
+                self.client.alert_handler.set_alert(0, prim_curr_price, prim_alert_price)
+
             else:
-                # If override is specified, bypass guesser and set alert for specified asset directly
-                if "override" in m.content:
-                    if self.client.assets[0] in m.content.upper():
-                        await m.reply(alert_handler.set_alert(self, 0, prim_curr_price, prim_alert_price))
-                    if self.client.assets[1] in m.content.upper():
-                        await m.reply(alert_handler.set_alert(self, 1, sec_curr_price, sec_alert_price))
-                else:
-                    prim_delta = abs(prim_curr_price - prim_alert_price)
-                    sec_delta = abs(sec_curr_price - sec_alert_price)
+                sec_curr_price = float(re.findall(r"\d+\.\d+", bot_member.activities[0].name)[0])
+                sec_alert_price = parse_price(alert_string, sec_curr_price, self.client.cad_usd_conversion_ratio)
 
-                    if prim_delta < sec_delta:
-                        await m.reply(alert_handler.set_alert(self, 0, prim_curr_price, prim_alert_price))
-                    elif sec_delta < prim_delta:
-                        await m.reply(alert_handler.set_alert(self, 1, sec_curr_price, sec_alert_price))
+                # If alert price not valid: Ignore since message could be generic
+                # If alert price valid: Set alert
+                alert_string = ""
+                for i in range (1, len(m_list)):
+                    alert_string += m_list[i]
+
+                if (prim_alert_price is None) and (sec_alert_price is None):
+                    return
+                else:
+                    # If override is specified, bypass guesser and set alert for specified asset directly
+                    if "override" in m.content.lower():
+                        if self.client.assets[0] in m.content.upper():
+                            await m.reply(self.client.alert_handler.set_alert(0, prim_curr_price, prim_alert_price))
+                        if self.client.assets[1] in m.content.upper():
+                            await m.reply(self.client.alert_handler.set_alert(1, sec_curr_price, sec_alert_price))
                     else:
-                        await m.reply('Specified alert price is too close to the current price of both assets. Please try a different value, or use the targeted command using syntax ```ticker alert_price```.')
+                        prim_delta = abs(prim_curr_price - prim_alert_price)
+                        sec_delta = abs(sec_curr_price - sec_alert_price)
+
+                        if abs(prim_delta - sec_delta)/prim_delta < 0.05 and abs(prim_delta - sec_delta)/sec_delta < 0.05:
+                            await m.reply(f"Specified alert price is too close to the current price of both assets. Please try a different value, or use the targeted command using syntax ```{self.client.user.mention} alert_price override ticker```.")
+                        elif prim_delta < sec_delta:
+                            await m.reply(self.client.alert_handler.set_alert(0, prim_curr_price, prim_alert_price))
+                        elif sec_delta < prim_delta:
+                            await m.reply(self.client.alert_handler.set_alert(1, sec_curr_price, sec_alert_price))
     
+
     @commands.command(name="alerts")
     async def alerts(self, context):
         # If one of the alerts is not None, the bot replies with the alerts
@@ -167,9 +173,11 @@ class CommandHandler(commands.Cog):
             await context.message.reply(embed=embed)
         await context.message.add_reaction("\U00002705")  # Add a reaction since bots without alerts don't reply
 
+
     @commands.command(name="uptime")
     async def uptime(self, context):
         await context.send(f"{self.client.name} price bot online since <t:{self.client.start_time}> (<t:{self.client.start_time}:R>)")
+
 
     @commands.command(name="last")
     async def last(self, context):
@@ -190,6 +198,7 @@ class CommandHandler(commands.Cog):
             await context.send(f"""Price Bot: {self.client.discord_api_gets} {parse_single_multi_val(self.client.discord_api_gets, "GET")} to Discord API since <t:{self.client.start_time}>  (<t:{self.client.start_time}:R>).
 {self.client.assets[0]}: {self.client.discord_api_posts[0]} {parse_single_multi_val(self.client.discord_api_posts[0], "POST")} to Discord API since <t:{self.client.start_time}> (<t:{self.client.start_time}:R>).""")
 
+
     @commands.command(name="var")
     async def var(self, context):
         if self.client.dual:
@@ -197,6 +206,7 @@ class CommandHandler(commands.Cog):
 {self.client.assets[1]} Variability: {self.client.variability_threshold[1] * 100}% (approx. ${round(self.client.usd_price[1] * self.client.variability_threshold[1], 4)})""")
         else:
             await context.send(f"{self.client.assets[0]} Variability: {self.client.variability_threshold[0] * 100}% (approx. ${round(self.client.usd_price[0] * self.client.variability_threshold[0], 4)})")
+
 
     @commands.command(name="ping")
     async def ping(self, context):
@@ -209,6 +219,7 @@ WS API Heartbeat: `{int(self.client.latency * 1000)}ms`""")
 
         await asyncio.sleep(main.delete_cooldown)
         await message_ping.delete()
+
 
     @commands.command(name="force")
     async def force(self, context):

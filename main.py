@@ -66,6 +66,9 @@ def CryptoPriceBot(bot_token, assets):
 
     client.name = f"{client.assets[0]}/{client.assets[1]}" if client.dual else client.assets[0]
 
+    # * Initialize Alert Handler
+    client.alert_handler = alert_handler.AlertHandler(client)
+
     # * Set Price Alerts
     client.alert_up = [None, None]
     client.alert_down = [None, None]
@@ -91,6 +94,7 @@ def CryptoPriceBot(bot_token, assets):
         if client.dual:
             client.variability_threshold[1] = data["variability-threshold"][client.assets[1]]
 
+
     # * Main Bot Loop
     async def main_loop():
         alert_channel = client.get_channel(696082479752413277)
@@ -109,24 +113,24 @@ def CryptoPriceBot(bot_token, assets):
 
                     if data['type'] == "update":
                         if data['market'] == f"{client.assets[0]}-PERP":
-                            group_index = 0
+                            asset_index = 0
 
                         elif client.dual and data['market'] == f"{client.assets[1]}-PERP":
-                            group_index = 1
+                            asset_index = 1
 
-                        client.last_ws_update[group_index] = int(time.time())
+                        client.last_ws_update[asset_index] = int(time.time())
 
-                        client.usd_price[group_index] = float(data['data'][0]['price'])
+                        client.usd_price[asset_index] = float(data['data'][0]['price'])
 
                         # Check Alerts (Since every iteration loop only gets new data for one asset, we only need to check alert on one asset)
-                        if client.alert_up[group_index]:
-                            if client.usd_price[group_index] > client.alert_up[group_index]:
-                                await alert_channel.send(f"\U0001f4c8 {alert_role.mention} {client.assets[group_index]} is above {client.alert_up[group_index]}.")
-                                alert_handler.clear_alert(client, group_index, 'up')
-                        if client.alert_down[group_index]:
-                            if client.usd_price[group_index] < client.alert_down[group_index]:
-                                await alert_channel.send(f"\U0001f4c9 {alert_role.mention} {client.assets[group_index]} is below {client.alert_down[group_index]}.")
-                                alert_handler.clear_alert(client, group_index, 'down')
+                        if client.alert_up[asset_index]:
+                            if client.usd_price[asset_index] > client.alert_up[asset_index]:
+                                await alert_channel.send(f"\U0001f4c8 {alert_role.mention} {client.assets[asset_index]} is above {client.alert_up[asset_index]}.")
+                                client.alert_handler.clear_alert(asset_index, 'up')
+                        if client.alert_down[asset_index]:
+                            if client.usd_price[asset_index] < client.alert_down[asset_index]:
+                                await alert_channel.send(f"\U0001f4c9 {alert_role.mention} {client.assets[asset_index]} is below {client.alert_down[asset_index]}.")
+                                client.alert_handler.clear_alert(asset_index, 'down')
 
                         # Get currently displayed prices from Discord API
                         bot_display_price = [None, None]
@@ -136,14 +140,14 @@ def CryptoPriceBot(bot_token, assets):
                         # Add 1 to API GET counter
                         client.discord_api_gets += 1
 
-                        if group_index == 0:
+                        if asset_index == 0:
                             # Bot nickname can be formatted incorrectly for regex, try to parse, otherwise manually set display price to near $0 to force update
                             try:
                                 bot_display_price[0] = float(re.findall(r"\d+\.\d+", bot_member.nick)[0])
                             except Exception:
                                 bot_display_price[0] = float(10**-10)
 
-                        elif group_index == 1:
+                        elif asset_index == 1:
                             # Bot activity will be None during cold start, try to parse existing activity, otherwise manually set display price to near $0 to force update
                             if bot_member.activity is not None:
                                 try:
@@ -154,11 +158,11 @@ def CryptoPriceBot(bot_token, assets):
                                 bot_display_price[1] = float(10**-10)
 
                         # Calculate delta factor between actual price and displayed price
-                        delta_factor = abs(1-(client.usd_price[group_index] / bot_display_price[group_index]))
+                        delta_factor = abs(1-(client.usd_price[asset_index] / bot_display_price[asset_index]))
 
-                        if delta_factor > client.variability_threshold[group_index]:
-                            await update_display(group_index)
-                            client.discord_api_posts[group_index] += 1
+                        if delta_factor > client.variability_threshold[asset_index]:
+                            await update_display(asset_index)
+                            client.discord_api_posts[asset_index] += 1
 
                     elif data['type'] == "subscribed" or data['type'] == "unsubscribed":
                         pass
@@ -170,10 +174,12 @@ def CryptoPriceBot(bot_token, assets):
             except Exception:
                 continue
 
+
     # * Task Loops
     @tasks.loop(hours=1)
     async def update_cad_usd_conversion():
         client.usd_cad_conversion = get_usd_cad_conversion()
+
 
     # * Update Displayed Price
     async def update_display(group_index):
