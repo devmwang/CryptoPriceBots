@@ -1,12 +1,8 @@
 {
     "variability-threshold": {
+        "FTT": 0.001,
         "MATIC": 0.001,
         "LRC": 0.0015,
-        "FTT": 0.001,
-        "DOT": 0.0015,
-        "UNI": 0.0015,
-        "AAVE": 0.002,
-        "LINK": 0.0015,
-        "LTC": 0.002
+        "AAVE": 0.002
     }
 }

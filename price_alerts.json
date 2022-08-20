@@ -1,4 +1,8 @@
 {
+    "FTT": {
+        "up": null,
+        "down": null
+    },
     "MATIC": {
         "up": null,
         "down": null
@@ -7,27 +11,7 @@
         "up": null,
         "down": null
     },
-    "FTT": {
-        "up": null,
-        "down": null
-    },
-    "DOT": {
-        "up": null,
-        "down": null
-    },
-    "UNI": {
-        "up": null,
-        "down": null
-    },
     "AAVE": {
-        "up": null,
-        "down": null
-    },
-    "LINK": {
-        "up": null,
-        "down": null
-    },
-    "LTC": {
         "up": null,
         "down": null
     }
