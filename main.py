@@ -197,9 +197,9 @@ def CryptoPriceBot(bot_token, assets):
         if client.disconnected:
             # Set bot status and rich presence
             if client.dual:
-                await client.sts_msg.edit(content=f"{client.pairs[0]}/{client.pairs[1]} WS Status: :red_circle:")
+                await client.status_message.edit(content=f"{client.pairs[0]}/{client.pairs[1]} WS Status: :red_circle:")
             else:
-                await client.sts_msg.edit(content=f"{client.pairs[0]} WS Status: :red_circle:")
+                await client.status_message.edit(content=f"{client.pairs[0]} WS Status: :red_circle:")
 
             await client.change_presence(activity=discord.Game(client.utils.get_activity_label()), status=discord.Status.dnd)
 
@@ -224,9 +224,9 @@ def CryptoPriceBot(bot_token, assets):
 
             # Reset bot status and rich presence in Discord
             if client.dual:
-                await client.sts_msg.edit(content=f"{client.pairs[0]}/{client.pairs[1]} WS Status: :green_circle:")
+                await client.status_message.edit(content=f"{client.pairs[0]}/{client.pairs[1]} WS Status: :green_circle:")
             else:
-                await client.sts_msg.edit(content=f"{client.pairs[0]} WS Status: :green_circle:")
+                await client.status_message.edit(content=f"{client.pairs[0]} WS Status: :green_circle:")
 
             await client.change_presence(activity=discord.Game(client.utils.get_activity_label()), status=discord.Status.online)
 
@@ -249,16 +249,16 @@ def CryptoPriceBot(bot_token, assets):
             if not client.dual:
                 # Set status based on current disconnected status
                 if client.disconnected[0]:
-                    await client.change_presence(activity=discord.Game(f"CA${round((client.usd_price[0] * client.usd_cad_conversion), 4)}"), status=discord.Status.dnd)
+                    await client.change_presence(activity=discord.Game(client.utils.get_activity_label()), status=discord.Status.dnd)
                 else:
-                    await client.change_presence(activity=discord.Game(f"CA${round((client.usd_price[0] * client.usd_cad_conversion), 4)}"), status=discord.Status.online)
+                    await client.change_presence(activity=discord.Game(client.utils.get_activity_label()), status=discord.Status.online)
 
         elif (group_index == 1):
             # Set status based on current disconnected status
             if client.disconnected[0] or client.disconnected[1]:
-                await client.change_presence(activity=discord.Game(f"{client.assets[1]} - ${round(client.usd_price[1], 4)}"), status=discord.Status.dnd)
+                await client.change_presence(activity=discord.Game(client.utils.get_activity_label()), status=discord.Status.dnd)
             else:
-                await client.change_presence(activity=discord.Game(f"{client.assets[1]} - ${round(client.usd_price[1], 4)}"), status=discord.Status.online)
+                await client.change_presence(activity=discord.Game(client.utils.get_activity_label()), status=discord.Status.online)
 
 
     # * On Ready
@@ -288,11 +288,7 @@ def CryptoPriceBot(bot_token, assets):
         await bot_status_channel.delete_messages(messages)
 
         # Create Bot Status Message
-        if client.dual:
-            client.status_msg = await bot_status_channel.send(f"""{client.assets[0]} WS Status: :green_circle:
-{client.assets[1]} WS Status: :green_circle:""")
-        else:
-            client.status_msg = await bot_status_channel.send(f"{client.assets[0]} WS Status: :green_circle:")
+        client.status_message = await bot_status_channel.send(f"{client.assets[0]} WS Status: :green_circle:")
 
         # Initialize price data from FTX REST API
         client.usd_price = [get_rest_price(client.assets[0]), get_rest_price(client.assets[1])] if client.dual else [get_rest_price(client.assets[0])]

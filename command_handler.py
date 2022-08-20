@@ -182,30 +182,23 @@ class CommandHandler(commands.Cog):
     @commands.command(name="last")
     async def last(self, context):
         if self.client.dual:
-            await context.send(f"""{self.client.assets[0]}: Last websocket message received on <t:{self.client.last_ws_update[0]}:D> at <t:{self.client.last_ws_update[0]}:t> (<t:{self.client.last_ws_update[0]}:R>)
-{self.client.assets[1]}: Last websocket message received on <t:{self.client.last_ws_update[1]}:D> at <t:{self.client.last_ws_update[1]}:t> (<t:{self.client.last_ws_update[1]}:R>)""")
+            await context.send(f"{self.client.assets[0]}/{self.client.assets[1]}: Last websocket message received on <t:{self.client.last_ws_update[0]}:D> at <t:{self.client.last_ws_update[0]}:t> (<t:{self.client.last_ws_update[0]}:R>)")
         else:
             await context.send(f"{self.client.assets[0]}: Last websocket message received on <t:{self.client.last_ws_update[0]}:D> at <t:{self.client.last_ws_update[0]}:t> (<t:{self.client.last_ws_update[0]}:R>)")
 
 
     @commands.command(name="requests")
     async def requests(self, context):
-        if self.client.dual:
-            await context.send(f"""Price Bot: {self.client.discord_api_gets} {parse_single_multi_val(self.client.discord_api_gets, "GET")} to Discord API since <t:{self.client.start_time}>  (<t:{self.client.start_time}:R>).
-{self.client.assets[0]}: {self.client.discord_api_posts[0]} {parse_single_multi_val(self.client.discord_api_posts[0], "POST")} to Discord API since <t:{self.client.start_time}> (<t:{self.client.start_time}:R>).
-{self.client.assets[1]}: {self.client.discord_api_posts[1]} {parse_single_multi_val(self.client.discord_api_posts[1], "POST")} to Discord API since <t:{self.client.start_time}> (<t:{self.client.start_time}:R>).""")
-        else:
-            await context.send(f"""Price Bot: {self.client.discord_api_gets} {parse_single_multi_val(self.client.discord_api_gets, "GET")} to Discord API since <t:{self.client.start_time}>  (<t:{self.client.start_time}:R>).
-{self.client.assets[0]}: {self.client.discord_api_posts[0]} {parse_single_multi_val(self.client.discord_api_posts[0], "POST")} to Discord API since <t:{self.client.start_time}> (<t:{self.client.start_time}:R>).""")
+        await context.send(self.client.utils.multiline(2, 3, f"""Price Bot: {self.client.discord_api_gets} {parse_single_multi_val(self.client.discord_api_gets, "GET")} to Discord API since <t:{self.client.start_time}>  (<t:{self.client.start_time}:R>).""",
+                                                        f"""{self.client.assets[0]}: {self.client.discord_api_posts[0]} {parse_single_multi_val(self.client.discord_api_posts[0], "POST")} to Discord API since <t:{self.client.start_time}> (<t:{self.client.start_time}:R>).""",
+                                                        f"""{self.client.assets[1]}: {self.client.discord_api_posts[1]} {parse_single_multi_val(self.client.discord_api_posts[1], "POST")} to Discord API since <t:{self.client.start_time}> (<t:{self.client.start_time}:R>)."""))
 
 
     @commands.command(name="var")
     async def var(self, context):
         if self.client.dual:
-            await context.send(f"""{self.client.assets[0]} Variability: {self.client.variability_threshold[0] * 100}% (approx. ${round(self.client.usd_price[0] * self.client.variability_threshold[0], 4)})
-{self.client.assets[1]} Variability: {self.client.variability_threshold[1] * 100}% (approx. ${round(self.client.usd_price[1] * self.client.variability_threshold[1], 4)})""")
-        else:
-            await context.send(f"{self.client.assets[0]} Variability: {self.client.variability_threshold[0] * 100}% (approx. ${round(self.client.usd_price[0] * self.client.variability_threshold[0], 4)})")
+            await context.send(self.client.utils.multiline(1, 2, f"{self.client.assets[0]} Variability: {self.client.variability_threshold[0] * 100}% (approx. ${round(self.client.usd_price[0] * self.client.variability_threshold[0], 4)})",
+                                                           f"{self.client.assets[1]} Variability: {self.client.variability_threshold[1] * 100}% (approx. ${round(self.client.usd_price[1] * self.client.variability_threshold[1], 4)})"))
 
 
     @commands.command(name="ping")
@@ -213,9 +206,8 @@ class CommandHandler(commands.Cog):
         before_ping = time.monotonic()
         message_ping = await context.send("Pong!")
         ping_time = (time.monotonic() - before_ping) * 1000
-        await message_ping.edit(content=f"""Pong!
-REST API: `{int(ping_time)}ms`
-WS API Heartbeat: `{int(self.client.latency * 1000)}ms`""")
+
+        await message_ping.edit(content=self.client.utils.multiline(3, 3, f"Pong!", f"REST API: `{int(ping_time)}ms`", f"WS API Heartbeat: `{int(self.client.latency * 1000)}ms`"))
 
         await asyncio.sleep(main.delete_cooldown)
         await message_ping.delete()
