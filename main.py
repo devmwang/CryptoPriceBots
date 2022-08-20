@@ -197,9 +197,9 @@ def CryptoPriceBot(bot_token, assets):
         if client.disconnected:
             # Set bot status and rich presence
             if client.dual:
-                await client.status_message.edit(content=f"{client.pairs[0]}/{client.pairs[1]} WS Status: :red_circle:")
+                await client.status_message.edit(content=f"{client.assets[0]}/{client.assets[1]} WS Status: :red_circle:")
             else:
-                await client.status_message.edit(content=f"{client.pairs[0]} WS Status: :red_circle:")
+                await client.status_message.edit(content=f"{client.assets[0]} WS Status: :red_circle:")
 
             await client.change_presence(activity=discord.Game(client.utils.get_activity_label()), status=discord.Status.dnd)
 
@@ -224,9 +224,9 @@ def CryptoPriceBot(bot_token, assets):
 
             # Reset bot status and rich presence in Discord
             if client.dual:
-                await client.status_message.edit(content=f"{client.pairs[0]}/{client.pairs[1]} WS Status: :green_circle:")
+                await client.status_message.edit(content=f"{client.assets[0]}/{client.assets[1]} WS Status: :green_circle:")
             else:
-                await client.status_message.edit(content=f"{client.pairs[0]} WS Status: :green_circle:")
+                await client.status_message.edit(content=f"{client.assets[0]} WS Status: :green_circle:")
 
             await client.change_presence(activity=discord.Game(client.utils.get_activity_label()), status=discord.Status.online)
 
@@ -270,9 +270,6 @@ def CryptoPriceBot(bot_token, assets):
         # Get Discord Server
         client.guild = client.get_guild(696082479752413274)
 
-        update_cad_usd_conversion.start()
-        check_last_ws_msg.start()
-
         print(f"{client.name} loaded.")
 
         # Bot Status System
@@ -289,6 +286,10 @@ def CryptoPriceBot(bot_token, assets):
 
         # Create Bot Status Message
         client.status_message = await bot_status_channel.send(f"{client.assets[0]} WS Status: :green_circle:")
+
+        # Start Background Tasks
+        update_cad_usd_conversion.start()
+        check_last_ws_msg.start()
 
         # Initialize price data from FTX REST API
         client.usd_price = [get_rest_price(client.assets[0]), get_rest_price(client.assets[1])] if client.dual else [get_rest_price(client.assets[0])]
