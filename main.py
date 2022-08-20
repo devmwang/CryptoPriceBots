@@ -1,15 +1,16 @@
 import os
+import subprocess
 from dotenv import load_dotenv
 from multiprocessing import Process
-import discord
 import requests
 import json
 import re
 import time
 import websockets
-
+import discord
 from discord.ext import commands, tasks
 
+import utils
 import alert_handler
 
 
@@ -51,23 +52,28 @@ def CryptoPriceBot(bot_token, assets):
     # * Initialization
     client = commands.Bot(command_prefix="p!", intents=intents)
 
+    # * Initialize Utils
+    client.utils = utils.Utils(client)
+    
+    # * Initialize Alert Handler
+    client.alert_handler = alert_handler.AlertHandler(client)
+
+    # * Initialize Client Variables
+
     client.dual = True if len(assets) == 2 else False
 
-    client.last_ws_update = [None, None]
+    client.last_ws_update = None
     client.discord_api_gets = 0
     client.discord_api_posts = 0
     client.start_time = int(time.time())
 
     client.dc_threshold_time = None
     client.status_message = None
-    client.disconnected = [False, False]
+    client.disconnected = False
 
     client.assets = assets
 
     client.name = f"{client.assets[0]}/{client.assets[1]}" if client.dual else client.assets[0]
-
-    # * Initialize Alert Handler
-    client.alert_handler = alert_handler.AlertHandler(client)
 
     # * Set Price Alerts
     client.alert_up = [None, None]
@@ -118,7 +124,7 @@ def CryptoPriceBot(bot_token, assets):
                         elif client.dual and data['market'] == f"{client.assets[1]}-PERP":
                             asset_index = 1
 
-                        client.last_ws_update[asset_index] = int(time.time())
+                        client.last_ws_update = int(time.time())
 
                         client.usd_price[asset_index] = float(data['data'][0]['price'])
 
@@ -181,6 +187,50 @@ def CryptoPriceBot(bot_token, assets):
         client.usd_cad_conversion = get_usd_cad_conversion()
 
 
+    @tasks.loop(seconds=5)
+    async def check_last_ws_msg():
+        if client.last_ws_update is not None and (client.last_ws_update[0] + 60) < int(time.time()):
+            client.disconnected = True
+        
+        # Prolonged DC Self-Restart Logic
+        # If either websocket is disconnected, run checker logic
+        if client.disconnected:
+            # Set bot status and rich presence
+            if client.dual:
+                await client.sts_msg.edit(content=f"{client.pairs[0]}/{client.pairs[1]} WS Status: :red_circle:")
+            else:
+                await client.sts_msg.edit(content=f"{client.pairs[0]} WS Status: :red_circle:")
+
+            await client.change_presence(activity=discord.Game(client.utils.get_activity_label()), status=discord.Status.dnd)
+
+            # If there is already a trigger time set, check if current time is over threshold time
+            if client.dc_threshold_time != None:
+                curr_time = int(time.time())
+
+                # If current time over threshold time, trigger restart
+                if curr_time > client.dc_threshold_time:
+                    await client.get_channel(712721050223247360).send(f"[PRICE BOT HEALTH SYS] Price bot service restart triggered at <t:{curr_time}:T> (<t:{curr_time}:R>)")
+
+                    subprocess.Popen("sudo systemctl restart crypto-price-bots", shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            
+            # If there is no trigger time set, set a trigger time 120 seconds later
+            else:                
+                client.dc_threshold_time = (int(time.time()) + 120)
+        
+        # If no websockets are disconnected, cancel threshold if it exists
+        else:
+            # Cancel current threshold time
+            client.dc_threshold_time = None
+
+            # Reset bot status and rich presence in Discord
+            if client.dual:
+                await client.sts_msg.edit(content=f"{client.pairs[0]}/{client.pairs[1]} WS Status: :green_circle:")
+            else:
+                await client.sts_msg.edit(content=f"{client.pairs[0]} WS Status: :green_circle:")
+
+            await client.change_presence(activity=discord.Game(client.utils.get_activity_label()), status=discord.Status.online)
+
+
     # * Update Displayed Price
     async def update_display(group_index):
         # Format for dual asset price bots
@@ -221,7 +271,7 @@ def CryptoPriceBot(bot_token, assets):
         client.guild = client.get_guild(696082479752413274)
 
         update_cad_usd_conversion.start()
-        # check_last_ws_msg.start()
+        check_last_ws_msg.start()
 
         print(f"{client.name} loaded.")
 
