@@ -189,7 +189,7 @@ def CryptoPriceBot(bot_token, assets):
 
     @tasks.loop(seconds=5)
     async def check_last_ws_msg():
-        if client.last_ws_update is not None and (client.last_ws_update[0] + 60) < int(time.time()):
+        if client.last_ws_update is not None and (client.last_ws_update + 60) < int(time.time()):
             client.disconnected = True
         
         # Prolonged DC Self-Restart Logic
@@ -248,14 +248,14 @@ def CryptoPriceBot(bot_token, assets):
         
             if not client.dual:
                 # Set status based on current disconnected status
-                if client.disconnected[0]:
+                if client.disconnected:
                     await client.change_presence(activity=discord.Game(client.utils.get_activity_label()), status=discord.Status.dnd)
                 else:
                     await client.change_presence(activity=discord.Game(client.utils.get_activity_label()), status=discord.Status.online)
 
         elif (group_index == 1):
             # Set status based on current disconnected status
-            if client.disconnected[0] or client.disconnected[1]:
+            if client.disconnected:
                 await client.change_presence(activity=discord.Game(client.utils.get_activity_label()), status=discord.Status.dnd)
             else:
                 await client.change_presence(activity=discord.Game(client.utils.get_activity_label()), status=discord.Status.online)
