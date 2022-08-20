@@ -1,16 +1,11 @@
 import asyncio
-import json
 import subprocess
 import time
 import re
 import discord
-import requests
-import main
 from discord.ext import commands
-from discord_slash.utils.manage_components import create_button, create_actionrow, wait_for_component
-from discord_slash.model import ButtonStyle
-from discord_slash import ComponentContext
 
+import main
 import alert_handler
 
 
@@ -50,102 +45,102 @@ class CommandHandler(commands.Cog):
         self.client = client
 
     
-    @commands.Cog.listener()
-    async def on_message(self, m):
-        # On mention activities
-        if m.content in [f"<@{self.client.user.id}>", f"<@!{self.client.user.id}>"]:
-            # Buttons
-            buttons = [create_button(style=ButtonStyle.green, label="Restart all"),
-                       create_button(style=ButtonStyle.blue, label="View alerts"),
-                       create_button(style=ButtonStyle.red, label="Clear alerts")]
-            action_row = create_actionrow(*buttons)
+#     @commands.Cog.listener()
+#     async def on_message(self, m):
+#         # On mention activities
+#         if m.content in [f"<@{self.client.user.id}>", f"<@!{self.client.user.id}>"]:
+#             # Buttons
+#             buttons = [create_button(style=ButtonStyle.green, label="Restart all"),
+#                        create_button(style=ButtonStyle.blue, label="View alerts"),
+#                        create_button(style=ButtonStyle.red, label="Clear alerts")]
+#             action_row = create_actionrow(*buttons)
 
-            # Determine ticker through getting the nickname of the bot, usually in this format:
-            # BTC - $30495.40
-            name = m.guild.get_member(self.client.user.id).nick.split()
-            msg = await m.reply(f"""{self.client.pairs[0]}: {self.client.usd_price[0]} USD
-{self.client.pairs[1]}: {self.client.usd_price[1]} USD""", components=[action_row])
-            try:
-                while True:
-                    button_ctx: ComponentContext = await wait_for_component(self.client, components=action_row, timeout=10)
-                    if button_ctx.component['label'] == "Restart all":
-                        await msg.edit(components=None)
-                        await button_ctx.send("Restarting all price bots.")
-                        try:
-                            pipe = subprocess.Popen("sudo service crypto-price-bots restart", shell=True,
-                                                    stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-                            out, err = pipe.communicate()
-                            response = out.decode()
-                            error = err.decode()
-                            combined = response + error
-                            if combined == "":
-                                msg = await button_ctx.send("Price bots restarted.")
-                                await asyncio.sleep(main.delete_cooldown)
-                                await msg.delete()
-                            else:
-                                await button_ctx.send(f"```{combined}```")
-                        except discord.errors.HTTPException as _e:
-                            await button_ctx.send(str(_e))
-                    if button_ctx.component['label'] == "View alerts":
-                        embed = discord.Embed(title=f"Current Alerts", color=0x00ff00)
+#             # Determine ticker through getting the nickname of the bot, usually in this format:
+#             # BTC - $30495.40
+#             name = m.guild.get_member(self.client.user.id).nick.split()
+#             msg = await m.reply(f"""{self.client.pairs[0]}: {self.client.usd_price[0]} USD
+# {self.client.pairs[1]}: {self.client.usd_price[1]} USD""", components=[action_row])
+#             try:
+#                 while True:
+#                     button_ctx: ComponentContext = await wait_for_component(self.client, components=action_row, timeout=10)
+#                     if button_ctx.component['label'] == "Restart all":
+#                         await msg.edit(components=None)
+#                         await button_ctx.send("Restarting all price bots.")
+#                         try:
+#                             pipe = subprocess.Popen("sudo service crypto-price-bots restart", shell=True,
+#                                                     stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+#                             out, err = pipe.communicate()
+#                             response = out.decode()
+#                             error = err.decode()
+#                             combined = response + error
+#                             if combined == "":
+#                                 msg = await button_ctx.send("Price bots restarted.")
+#                                 await asyncio.sleep(main.delete_cooldown)
+#                                 await msg.delete()
+#                             else:
+#                                 await button_ctx.send(f"```{combined}```")
+#                         except discord.errors.HTTPException as _e:
+#                             await button_ctx.send(str(_e))
+#                     if button_ctx.component['label'] == "View alerts":
+#                         embed = discord.Embed(title=f"Current Alerts", color=0x00ff00)
 
-                        embed.add_field(name="Asset:", value=f"{self.client.pairs[0]}")
-                        embed.add_field(name="Price up:", value=parse_alert_val(self.client.alert_up[0]))
-                        embed.add_field(name="Price down:", value=parse_alert_val(self.client.alert_down[0]))
+#                         embed.add_field(name="Asset:", value=f"{self.client.pairs[0]}")
+#                         embed.add_field(name="Price up:", value=parse_alert_val(self.client.alert_up[0]))
+#                         embed.add_field(name="Price down:", value=parse_alert_val(self.client.alert_down[0]))
 
-                        embed.add_field(name="Asset:", value=f"{self.client.pairs[1]}")
-                        embed.add_field(name="Price up:", value=parse_alert_val(self.client.alert_up[1]))
-                        embed.add_field(name="Price down:", value=parse_alert_val(self.client.alert_down[1]))
+#                         embed.add_field(name="Asset:", value=f"{self.client.pairs[1]}")
+#                         embed.add_field(name="Price up:", value=parse_alert_val(self.client.alert_up[1]))
+#                         embed.add_field(name="Price down:", value=parse_alert_val(self.client.alert_down[1]))
 
-                        await button_ctx.send(embed=embed)
+#                         await button_ctx.send(embed=embed)
 
-                    if button_ctx.component['label'] == "Clear alerts":
-                        await button_ctx.send(f"Cleared all alerts.")
-                        alert_handler.clear_all_alerts(self)
+#                     if button_ctx.component['label'] == "Clear alerts":
+#                         await button_ctx.send(f"Cleared all alerts.")
+#                         alert_handler.clear_all_alerts(self)
 
-            except asyncio.TimeoutError:
-                await msg.edit(components=[])
+#             except asyncio.TimeoutError:
+#                 await msg.edit(components=[])
 
-        # Set price alerts
-        # * Intelligent command setter
-        # * User only needs to mention the relevant price bot, it will then algorithmically determine the proper pair to assign it to
-        elif m.content.startswith(f"<@{self.client.user.id}>") or m.content.startswith(f"<@!{self.client.user.id}>"):
-            m_list = m.content.split()  # Should return list: [asset ticker, number]
-            ticker = m_list[0]
+#         # Set price alerts
+#         # * Intelligent command setter
+#         # * User only needs to mention the relevant price bot, it will then algorithmically determine the proper pair to assign it to
+#         elif m.content.startswith(f"<@{self.client.user.id}>") or m.content.startswith(f"<@!{self.client.user.id}>"):
+#             m_list = m.content.split()  # Should return list: [asset ticker, number]
+#             ticker = m_list[0]
             
-            bot_member = m.guild.get_member(self.client.user.id)
+#             bot_member = m.guild.get_member(self.client.user.id)
 
-            prim_curr_price = float(re.findall(r"\d+\.\d+", bot_member.nick)[0])
-            sec_curr_price = float(re.findall(r"\d+\.\d+", bot_member.activities[0].name)[0])
+#             prim_curr_price = float(re.findall(r"\d+\.\d+", bot_member.nick)[0])
+#             sec_curr_price = float(re.findall(r"\d+\.\d+", bot_member.activities[0].name)[0])
 
-            # If alert price not valid: Ignore since message could be generic
-            # If alert price valid: Set alert
-            alertstring = ""
-            for i in range (1, len(m_list)):
-                alertstring += m_list[i]
+#             # If alert price not valid: Ignore since message could be generic
+#             # If alert price valid: Set alert
+#             alertstring = ""
+#             for i in range (1, len(m_list)):
+#                 alertstring += m_list[i]
 
-            prim_alert_price = parse_price(alertstring, prim_curr_price, self.client.cad_usd_conversion_ratio)
-            sec_alert_price = parse_price(alertstring, sec_curr_price, self.client.cad_usd_conversion_ratio)
+#             prim_alert_price = parse_price(alertstring, prim_curr_price, self.client.cad_usd_conversion_ratio)
+#             sec_alert_price = parse_price(alertstring, sec_curr_price, self.client.cad_usd_conversion_ratio)
 
-            if (prim_alert_price is None) and (sec_alert_price is None):
-                return
-            else:
-                # If override is specified, bypass guesser and set alert for specified asset directly
-                if "override" in m.content:
-                    if self.client.pairs[0] in m.content.upper():
-                        await m.reply(alert_handler.set_alert(self, 0, prim_curr_price, prim_alert_price))
-                    if self.client.pairs[1] in m.content.upper():
-                        await m.reply(alert_handler.set_alert(self, 1, sec_curr_price, sec_alert_price))
-                else:
-                    prim_delta = abs(prim_curr_price - prim_alert_price)
-                    sec_delta = abs(sec_curr_price - sec_alert_price)
+#             if (prim_alert_price is None) and (sec_alert_price is None):
+#                 return
+#             else:
+#                 # If override is specified, bypass guesser and set alert for specified asset directly
+#                 if "override" in m.content:
+#                     if self.client.pairs[0] in m.content.upper():
+#                         await m.reply(alert_handler.set_alert(self, 0, prim_curr_price, prim_alert_price))
+#                     if self.client.pairs[1] in m.content.upper():
+#                         await m.reply(alert_handler.set_alert(self, 1, sec_curr_price, sec_alert_price))
+#                 else:
+#                     prim_delta = abs(prim_curr_price - prim_alert_price)
+#                     sec_delta = abs(sec_curr_price - sec_alert_price)
 
-                    if prim_delta < sec_delta:
-                        await m.reply(alert_handler.set_alert(self, 0, prim_curr_price, prim_alert_price))
-                    elif sec_delta < prim_delta:
-                        await m.reply(alert_handler.set_alert(self, 1, sec_curr_price, sec_alert_price))
-                    else:
-                        await m.reply('Specified alert price is too close to the current price of both assets. Please try a different value, or use the targeted command using syntax ```ticker alert_price```.')
+#                     if prim_delta < sec_delta:
+#                         await m.reply(alert_handler.set_alert(self, 0, prim_curr_price, prim_alert_price))
+#                     elif sec_delta < prim_delta:
+#                         await m.reply(alert_handler.set_alert(self, 1, sec_curr_price, sec_alert_price))
+#                     else:
+#                         await m.reply('Specified alert price is too close to the current price of both assets. Please try a different value, or use the targeted command using syntax ```ticker alert_price```.')
     
     @commands.command(name="alerts")
     async def alerts(self, context):
