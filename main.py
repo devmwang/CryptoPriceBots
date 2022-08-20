@@ -18,15 +18,23 @@ import alert_handler
 load_dotenv()
 
 # Get Bot Tokens from Env Vars
+FTT_TOKEN = os.getenv('FTT_TOKEN')
 MATIC_TOKEN = os.getenv('MATIC_TOKEN')
 LRC_TOKEN = os.getenv('LRC_TOKEN')
+AAVE_TOKEN = os.getenv('AAVE_TOKEN')
 
 bots = {
+    FTT_TOKEN: [
+        'FTT',
+    ],
     MATIC_TOKEN: [
         'MATIC',
     ],
     LRC_TOKEN: [
         'LRC',
+    ],
+    AAVE_TOKEN: [
+        'AAVE',
     ],
 }
 
