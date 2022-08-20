@@ -22,9 +22,9 @@ class AlertHandler():
 
                 # Assign alert to proper JSON location
                 if price_movement == 'up':
-                    data[self.client.pairs[index].upper()]['up'] = alert_price
+                    data[self.client.assets[index].upper()]['up'] = alert_price
                 elif price_movement == 'down':
-                    data[self.client.pairs[index].upper()]['down'] = alert_price
+                    data[self.client.assets[index].upper()]['down'] = alert_price
 
                 # Dump in-memory JSON to persistent JSON file
                 with open('price_alerts.json', 'w') as outfile:
@@ -34,10 +34,10 @@ class AlertHandler():
         if (index == 0 or index == 1):
             if price_movement == 'up':
                 self.client.alert_up[index] = alert_price
-                return (f"Set alert for {self.client.pairs[index].upper()} above ${alert_price}.")
+                return (f"Set alert for {self.client.assets[index].upper()} above ${alert_price}.")
             elif price_movement == 'down':
                 self.client.alert_down[index] = alert_price
-                return (f"Set alert for {self.client.pairs[index].upper()} below ${alert_price}.")
+                return (f"Set alert for {self.client.assets[index].upper()} below ${alert_price}.")
         else:
             return ("BA DING")
 
@@ -48,9 +48,9 @@ class AlertHandler():
             data = json.load(json_file)
 
             if (up_or_down == 'up'):
-                data[self.client.pairs[index].upper()]['up'] = None
+                data[self.client.assets[index].upper()]['up'] = None
             elif (up_or_down == 'down'):
-                data[self.client.pairs[index].upper()]['down'] = None
+                data[self.client.assets[index].upper()]['down'] = None
         
             # Dump in-memory JSON to persistent JSON file
             with open('price_alerts.json', 'w') as outfile:
@@ -68,10 +68,12 @@ class AlertHandler():
         with open('price_alerts.json') as json_file:
             data = json.load(json_file)
 
-            data[self.client.pairs[0].upper()]['up'] = None
-            data[self.client.pairs[0].upper()]['down'] = None
-            data[self.client.pairs[1].upper()]['up'] = None
-            data[self.client.pairs[1].upper()]['down'] = None
+            data[self.client.assets[0].upper()]['up'] = None
+            data[self.client.assets[0].upper()]['down'] = None
+
+            if self.client.dual:
+                data[self.client.assets[1].upper()]['up'] = None
+                data[self.client.assets[1].upper()]['down'] = None
 
             # Dump in-memory JSON to persistent JSON file
             with open('price_alerts.json', 'w') as outfile:
