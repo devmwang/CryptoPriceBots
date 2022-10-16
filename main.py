@@ -205,6 +205,8 @@ def CryptoPriceBot(bot_token, assets):
     async def check_last_ws_msg():
         if client.last_ws_update is not None and (client.last_ws_update + 60) < int(time.time()):
             client.disconnected = True
+        else:
+            client.disconnected = False
         
         # Prolonged DC Self-Restart Logic
         # If either websocket is disconnected, run checker logic
