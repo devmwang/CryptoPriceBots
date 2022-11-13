@@ -1,17 +1,17 @@
 {
-    "FTT": {
+    "BTC": {
         "up": null,
         "down": null
     },
-    "MATIC": {
+    "ETH": {
         "up": null,
         "down": null
     },
-    "LRC": {
+    "SOL": {
         "up": null,
         "down": null
     },
-    "AAVE": {
+    "LTC": {
         "up": null,
         "down": null
     }
