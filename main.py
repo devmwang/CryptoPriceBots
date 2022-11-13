@@ -102,17 +102,14 @@ def CryptoPriceBot(bot_token, asset):
         alert_channel = client.get_channel(alert_channel_id)
         alert_role = client.guild.get_role(alert_role_id)
 
-        # async with websockets.connect("wss://ftx.com/ws", ping_interval=15) as websocket:
         async for websocket in websockets.connect(f"wss://stream.binance.com:9443/ws/{client.asset.lower()}usdt@trade"):
             try:
                 while True:
                     data = json.loads(await websocket.recv())
 
                     if data['e'] == "trade":
-                        asset_index = 0
 
                         client.last_ws_update = int(time.time())
-
                         client.usd_price = float(data['p'])
 
                         # Check Alerts (Since every iteration loop only gets new data for one asset, we only need to check alert on one asset)
@@ -254,7 +251,7 @@ def main():
     processes = []
 
     for bot_token in bots:
-        new_process = Process(target = CryptoPriceBot, args = (bot_token, bots[bot_token],))
+        new_process = Process(target=CryptoPriceBot, args=(bot_token, bots[bot_token],))
         new_process.start()
         processes.append(new_process)
 

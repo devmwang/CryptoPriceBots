@@ -11,3 +11,5 @@ CryptoPriceBots is a system that instantiates multiple Discord bots to relay the
 This is the minimum percent change in price that will trigger a price update on the bot's nickname
 7. Rename `.env_template` to `.env` and follow the format for adding a token for your desired tickers
 8. In main.py, follow the examples under `load_dotenv()` and add your desired tickers to the `bots` dictionary
+9. In main.py, change variables ending with `_id` to your IDs for your guild and channel
+10. Run main.py
