@@ -1,8 +1,8 @@
 {
     "variability-threshold": {
-        "FTT": 0.001,
-        "MATIC": 0.001,
-        "LRC": 0.0015,
-        "AAVE": 0.002
+        "BTC": 0.001,
+        "ETH": 0.0015,
+        "SOL": 0.001,
+        "LTC": 0.0015
     }
 }
