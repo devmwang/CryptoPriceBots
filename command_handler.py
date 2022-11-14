@@ -142,7 +142,7 @@ class CommandHandler(commands.Cog):
     @commands.command(name="var")
     async def var(self, context):
         await context.send(
-            f"{self.client.name} price bot variability is {self.client.variability_threshold * 100}% (approx. ${round(self.client.usd_price * self.client.variability_threshold, 4)}.")
+            f"{self.client.name} price bot variability is {self.client.variability_threshold * 100}% (approx. ${round(self.client.usd_price * self.client.variability_threshold, 4)}).")
 
     @commands.command(name="ping")
     async def ping(self, context):
