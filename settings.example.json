@@ -1,0 +1,6 @@
+{
+    "variability-threshold": {
+        "BTC": 0.001,
+        "ETH": 0.0015
+    }
+}

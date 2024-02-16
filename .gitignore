@@ -5,3 +5,4 @@
 __pycache__
 .idea
 price_alerts.json
+settings.json

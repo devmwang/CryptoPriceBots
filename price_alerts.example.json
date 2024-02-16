@@ -6,29 +6,5 @@
     "ETH": {
         "up": null,
         "down": null
-    },
-    "SOL": {
-        "up": null,
-        "down": null
-    },
-    "LTC": {
-        "up": null,
-        "down": null
-    },
-    "FTT": {
-        "up": null,
-        "down": null
-    },
-    "MATIC": {
-        "up": null,
-        "down": null
-    },
-    "LRC": {
-        "up": null,
-        "down": null
-    },
-    "AAVE": {
-        "up": null,
-        "down": null
     }
 }
