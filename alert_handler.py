@@ -21,6 +21,9 @@ class AlertHandler:
                 data = json.load(json_file)
 
                 # Assign alert to proper JSON location
+                if self.client.asset.upper() not in data:
+                        data[self.client.asset.upper()] = {'up': None, 'down': None}
+
                 if price_movement == 'up':
                     data[self.client.asset.upper()]['up'] = alert_price
                 elif price_movement == 'down':

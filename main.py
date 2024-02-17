@@ -86,8 +86,11 @@ def CryptoPriceBot(bot_token, asset):
     with open('price_alerts.json') as json_file:
         data = json.load(json_file)
 
-        client.alert_up = data[client.asset]['up']
-        client.alert_down = data[client.asset]['down']
+        try: client.alert_up = data[client.asset]['up']
+        except KeyError: client.alert_up = None
+
+        try: client.alert_down = data[client.asset]['down']
+        except KeyError: client.alert_up = None
 
     # * Set Variability Threshold
     client.variability_threshold = None
@@ -95,7 +98,8 @@ def CryptoPriceBot(bot_token, asset):
     with open('settings.json') as json_file:
         data = json.load(json_file)
 
-        client.variability_threshold = data["variability-threshold"][client.asset]
+        try: client.variability_threshold = data["variability-threshold"][client.asset]
+        except KeyError: client.variability_threshold = 0.001
 
     # * Main Bot Loop
     async def main_loop():
