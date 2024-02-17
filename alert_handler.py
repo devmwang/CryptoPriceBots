@@ -22,7 +22,7 @@ class AlertHandler:
 
                 # Assign alert to proper JSON location
                 if self.client.asset.upper() not in data:
-                        data[self.client.asset.upper()] = {'up': None, 'down': None}
+                    data[self.client.asset.upper()] = {'up': None, 'down': None}
 
                 if price_movement == 'up':
                     data[self.client.asset.upper()]['up'] = alert_price
@@ -66,8 +66,9 @@ class AlertHandler:
         with open('price_alerts.json') as json_file:
             data = json.load(json_file)
 
-            data[self.client.asset.upper()]['up'] = None
-            data[self.client.asset.upper()]['down'] = None
+            if self.client.asset.upper() in data:
+                data[self.client.asset.upper()]['up'] = None
+                data[self.client.asset.upper()]['down'] = None
 
             # Dump in-memory JSON to persistent JSON file
             with open('price_alerts.json', 'w') as outfile:
