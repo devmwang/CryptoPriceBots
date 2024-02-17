@@ -34,20 +34,8 @@ source_endpoints = {
 # Initialize Env Variables
 load_dotenv()
 
-# Get Bot Tokens from Env Vars
-BTC_TOKEN = os.getenv('BTC_TOKEN')
-ETH_TOKEN = os.getenv('ETH_TOKEN')
-SOL_TOKEN = os.getenv('SOL_TOKEN')
-LTC_TOKEN = os.getenv('LTC_TOKEN')
-
-bots = {
-    BTC_TOKEN: "BTC",
-    ETH_TOKEN: "ETH",
-    SOL_TOKEN: "SOL",
-    LTC_TOKEN: "LTC"
-}
-
-
+# 
+# Initialize universal bot params
 intents = discord.Intents.default()
 intents.message_content = True
 delete_cooldown = 3
@@ -280,8 +268,16 @@ def CryptoPriceBot(bot_token, asset):
 def main():
     processes = []
 
-    for bot_token in bots:
-        new_process = Process(target=CryptoPriceBot, args=(bot_token, bots[bot_token],))
+    bots = []
+
+    with open('cpb_store.json') as json_file:
+        data = json.load(json_file)
+        bots = data["tickers"]
+
+    for bot_ticker in bots:
+        bot_token = os.getenv(f"{bot_ticker}_TOKEN")
+
+        new_process = Process(target=CryptoPriceBot, args=(bot_token, bot_ticker))
         new_process.start()
         processes.append(new_process)
 
