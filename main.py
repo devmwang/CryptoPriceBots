@@ -7,12 +7,29 @@ import json
 import re
 import time
 import websockets
+import urllib.parse
 import discord
 from discord.ext import commands, tasks
 
 import utils
 import alert_handler
 
+
+# Price Data Sources
+sources = ["BinanceSpot", "BinanceFutures"]
+source_endpoints = {
+    # Array format: [REST Endpoint, WS Endpoint Beginning, WS Endpoint End (If applicable)]
+    "BinanceSpot": {
+        "REST": "https://api.binance.com/api/v3/ticker/price",
+        "WS": "wss://stream.binance.com:9443/ws/",
+        "WS_SUFFIX": "usdt@trade"
+    },
+    "BinanceFutures": {
+        "REST": "https://fapi.binance.com/fapi/v1/ticker/price",
+        "WS": "wss://fstream.binance.com/ws/",
+        "WS_SUFFIX": "usdt@aggTrade"
+    },
+}
 
 # Initialize Env Variables
 load_dotenv()
@@ -43,10 +60,15 @@ bot_status_channel_id = 951549833368461372
 system_log_channel_id = 712721050223247360
 
 
-def get_rest_price(ticker):
-    response = requests.get(f"https://api.binance.com/api/v3/ticker/price", params={"symbol": f"{ticker}USDT"})
-    data = json.loads(response.content)
-    return float(data['price'])
+def initialize_with_rest(ticker):
+    for source in sources:
+        response = requests.get(source_endpoints[source]["REST"], params={"symbol": f"{ticker}USDT"})
+        data = json.loads(response.content)
+
+        if "price" in data:
+            return [source, float(data['price'])]
+    
+    raise Exception(f"Could not initialize {ticker}")
 
 
 def get_usd_cad_conversion():
@@ -66,7 +88,7 @@ def CryptoPriceBot(bot_token, asset):
     client.alert_handler = alert_handler.AlertHandler(client)
 
     # * Initialize Client Variables
-
+    client.ws_endpoint = {"WS": None, "WS_SUFFIX": None}
     client.last_ws_update = None
     client.discord_api_gets = 0
     client.discord_api_posts = 0
@@ -106,7 +128,7 @@ def CryptoPriceBot(bot_token, asset):
         alert_channel = client.get_channel(alert_channel_id)
         alert_role = client.guild.get_role(alert_role_id)
 
-        async for websocket in websockets.connect(f"wss://stream.binance.com:9443/ws/{client.asset.lower()}usdt@trade"):
+        async for websocket in websockets.connect(urllib.parse.urljoin(client.ws_endpoint["WS"], client.asset.lower(), client.ws_endpoint["WS_SUFFIX"])):
             try:
                 while True:
                     data = json.loads(await websocket.recv())
@@ -212,6 +234,13 @@ def CryptoPriceBot(bot_token, asset):
     # * On Ready
     @client.event
     async def on_ready():
+        # Initialize price data source and initial price data with rest
+        price_source, rest_usd_price = initialize_with_rest(client.asset)
+
+        client.ws_endpoint["WS"] = source_endpoints[price_source]["WS"]
+        client.ws_endpoint["WS_SUFFIX"] =  source_endpoints[price_source]["WS_SUFFIX"]
+        client.usd_price = rest_usd_price
+
         # Load extensions
         await client.load_extension('command_handler')
 
@@ -238,9 +267,6 @@ def CryptoPriceBot(bot_token, asset):
         # Start Background Tasks
         update_cad_usd_conversion.start()
         check_last_ws_msg.start()
-
-        # Initialize price data from Binance REST API
-        client.usd_price = get_rest_price(client.asset)
 
         await update_display()
 
