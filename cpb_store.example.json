@@ -1,4 +1,17 @@
 {
+    "settings": {
+        "system": {
+            "delete-cooldown": 3,
+            "loop-time": 12
+        },
+        "discord": {
+            "guild-id": 1111111111,
+            "alert-role-id": 1111111111,
+            "alert-channel-id": 1111111111,
+            "bot-status-channel-id": 1111111111,
+            "system-log-channel-id": 1111111111
+        }
+    },
     "tickers": ["BTC", "ETH"],
     "price-alerts": {
         "BTC": {

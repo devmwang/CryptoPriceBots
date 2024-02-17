@@ -34,18 +34,21 @@ source_endpoints = {
 # Initialize Env Variables
 load_dotenv()
 
-# 
 # Initialize universal bot params
 intents = discord.Intents.default()
 intents.message_content = True
-delete_cooldown = 3
-loop_time = 12
 
-guild_id = 696082479752413274
-alert_role_id = 798457594661437450
-alert_channel_id = 696082479752413277
-bot_status_channel_id = 951549833368461372
-system_log_channel_id = 712721050223247360
+with open('cpb_store.json') as json_file:
+    data = json.load(json_file)
+    
+    delete_cooldown = data["settings"]["system"]["delete-cooldown"]
+    loop_time = data["settings"]["system"]["loop-time"]
+
+    guild_id = data["settings"]["discord"]["guild-id"]
+    alert_role_id = data["settings"]["discord"]["alert-role-id"]
+    alert_channel_id = data["settings"]["discord"]["alert-channel-id"]
+    bot_status_channel_id = data["settings"]["discord"]["bot-status-channel-id"]
+    system_log_channel_id = data["settings"]["discord"]["system-log-channel-id"]
 
 
 def initialize_with_rest(ticker):
