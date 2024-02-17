@@ -105,19 +105,19 @@ def CryptoPriceBot(bot_token, asset):
     client.alert_up = None
     client.alert_down = None
 
-    with open('price_alerts.json') as json_file:
+    with open('cpb_store.json') as json_file:
         data = json.load(json_file)
 
-        try: client.alert_up = data[client.asset]['up']
+        try: client.alert_up = data["price-alerts"][client.asset]['up']
         except KeyError: client.alert_up = None
 
-        try: client.alert_down = data[client.asset]['down']
+        try: client.alert_down = data["price-alerts"][client.asset]['down']
         except KeyError: client.alert_up = None
 
     # * Set Variability Threshold
     client.variability_threshold = None
 
-    with open('settings.json') as json_file:
+    with open('cpb_store.json') as json_file:
         data = json.load(json_file)
 
         try: client.variability_threshold = data["variability-threshold"][client.asset]

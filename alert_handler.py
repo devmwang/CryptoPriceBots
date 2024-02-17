@@ -17,20 +17,20 @@ class AlertHandler:
         # Only set alert if price_movement exists
         if price_movement != 'same':
             # Open JSON file with persistent alert prices
-            with open('price_alerts.json') as json_file:
+            with open('cpb_store.json') as json_file:
                 data = json.load(json_file)
 
                 # Assign alert to proper JSON location
-                if self.client.asset.upper() not in data:
-                    data[self.client.asset.upper()] = {'up': None, 'down': None}
+                if self.client.asset.upper() not in data["price-alerts"]:
+                    data["price-alerts"][self.client.asset.upper()] = {'up': None, 'down': None}
 
                 if price_movement == 'up':
-                    data[self.client.asset.upper()]['up'] = alert_price
+                    data["price-alerts"][self.client.asset.upper()]['up'] = alert_price
                 elif price_movement == 'down':
-                    data[self.client.asset.upper()]['down'] = alert_price
+                    data["price-alerts"][self.client.asset.upper()]['down'] = alert_price
 
                 # Dump in-memory JSON to persistent JSON file
-                with open('price_alerts.json', 'w') as outfile:
+                with open('cpb_store.json', 'w') as outfile:
                     json.dump(data, outfile, indent=4)
 
         # Set client variable alert price
@@ -43,16 +43,17 @@ class AlertHandler:
 
     def clear_alert(self, direction):
         # Open JSON file with persistent alert prices
-        with open('price_alerts.json') as json_file:
+        with open('cpb_store.json') as json_file:
             data = json.load(json_file)
 
-            if direction == 'up':
-                data[self.client.asset.upper()]['up'] = None
-            elif direction == 'down':
-                data[self.client.asset.upper()]['down'] = None
+            if self.client.asset.upper() in data["price-alerts"]:
+                if direction == 'up':
+                    data["price-alerts"][self.client.asset.upper()]['up'] = None
+                elif direction == 'down':
+                    data["price-alerts"][self.client.asset.upper()]['down'] = None
 
             # Dump in-memory JSON to persistent JSON file
-            with open('price_alerts.json', 'w') as outfile:
+            with open('cpb_store.json', 'w') as outfile:
                 json.dump(data, outfile, indent=4)
 
         # Clear client var alert prices
@@ -63,15 +64,15 @@ class AlertHandler:
 
     def clear_all_alerts(self):
         # Open JSON file with persistent alert prices
-        with open('price_alerts.json') as json_file:
+        with open('cpb_store.json') as json_file:
             data = json.load(json_file)
 
-            if self.client.asset.upper() in data:
-                data[self.client.asset.upper()]['up'] = None
-                data[self.client.asset.upper()]['down'] = None
+            if self.client.asset.upper() in data["price-alerts"]:
+                data["price-alerts"][self.client.asset.upper()]['up'] = None
+                data["price-alerts"][self.client.asset.upper()]['down'] = None
 
             # Dump in-memory JSON to persistent JSON file
-            with open('price_alerts.json', 'w') as outfile:
+            with open('cpb_store.json', 'w') as outfile:
                 json.dump(data, outfile, indent=4)
 
         # Clear client var alert prices

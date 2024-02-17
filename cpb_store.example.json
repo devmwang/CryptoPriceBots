@@ -1,0 +1,16 @@
+{
+    "price-alerts": {
+        "BTC": {
+            "up": null,
+            "down": null
+        },
+        "ETH": {
+            "up": null,
+            "down": null
+        }
+    },
+    "variability-threshold": {
+        "BTC": 0.001,
+        "ETH": 0.0015
+    }
+}
