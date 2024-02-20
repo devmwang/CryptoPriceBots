@@ -7,7 +7,6 @@ import json
 import re
 import time
 import websockets
-import urllib.parse
 import discord
 from discord.ext import commands, tasks
 
@@ -119,7 +118,7 @@ def CryptoPriceBot(bot_token, asset):
         alert_channel = client.get_channel(alert_channel_id)
         alert_role = client.guild.get_role(alert_role_id)
 
-        async for websocket in websockets.connect(urllib.parse.urljoin(client.ws_endpoint["WS"], client.asset.lower(), client.ws_endpoint["WS_SUFFIX"])):
+        async for websocket in websockets.connect(f"{client.ws_endpoint["WS"]}{client.asset.lower()}{client.ws_endpoint["WS_SUFFIX"]}"):
             try:
                 while True:
                     data = json.loads(await websocket.recv())
