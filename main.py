@@ -60,7 +60,6 @@ def initialize_with_rest(ticker):
     
     raise Exception(f"Could not initialize {ticker}")
 
-
 def get_usd_cad_conversion():
     return float(
         json.loads(requests.get("https://api.coinbase.com/v2/exchange-rates", params={"currency": "USD"}).content)[
@@ -78,7 +77,7 @@ def CryptoPriceBot(bot_token, asset):
     client.alert_handler = alert_handler.AlertHandler(client)
 
     # * Initialize Client Variables
-    client.ws_endpoint = {"WS": None, "WS_SUFFIX": None}
+    client.source = None
     client.last_ws_update = None
     client.discord_api_gets = 0
     client.discord_api_posts = 0
@@ -118,16 +117,12 @@ def CryptoPriceBot(bot_token, asset):
         alert_channel = client.get_channel(alert_channel_id)
         alert_role = client.guild.get_role(alert_role_id)
 
-        async for websocket in websockets.connect(f"{client.ws_endpoint["WS"]}{client.asset.lower()}{client.ws_endpoint["WS_SUFFIX"]}"):
+        async for websocket in websockets.connect(f'{source_endpoints[client.source]["WS"]}{client.asset.lower()}{source_endpoints[client.source]["WS_SUFFIX"]}'):
             try:
                 while True:
                     data = json.loads(await websocket.recv())
 
-                    if data['e'] == "trade":
-
-                        client.last_ws_update = int(time.time())
-                        client.usd_price = float(data['p'])
-
+                    if parse_ws_response(data):
                         # Check Alerts (Since every iteration loop only gets new data for one asset, we only need to check alert on one asset)
                         if client.alert_up:
                             if client.usd_price > client.alert_up:
@@ -221,14 +216,30 @@ def CryptoPriceBot(bot_token, asset):
         else:
             await client.change_presence(activity=discord.Game(client.utils.get_activity_label()), status=discord.Status.online)
 
+    # * Parse WS Response
+    def parse_ws_response(data):
+        if client.source == "BinanceSpot" and data['e'] == "trade":
+            client.last_ws_update = int(time.time())
+            client.usd_price = float(data['p'])
+
+            return True
+        
+        if client.source == "BinanceFutures" and data['e'] == "aggTrade":
+            client.last_ws_update = int(time.time())
+            client.usd_price = float(data['p'])
+
+            return True
+        
+        else:
+            return False
+
     # * On Ready
     @client.event
     async def on_ready():
         # Initialize price data source and initial price data with rest
         price_source, rest_usd_price = initialize_with_rest(client.asset)
 
-        client.ws_endpoint["WS"] = source_endpoints[price_source]["WS"]
-        client.ws_endpoint["WS_SUFFIX"] =  source_endpoints[price_source]["WS_SUFFIX"]
+        client.source = price_source
         client.usd_price = rest_usd_price
 
         # Load extensions
